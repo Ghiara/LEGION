@@ -98,17 +98,19 @@ class VAE_Encoder(Encoder):
         self.num_layers = num_layers
         self.multitask_cfg = multitask_cfg
         self.should_reconstruct = should_reconstruct
+        self.input_mode = self.multitask_cfg.encoder_input_setup
+        # context_obs: use the meta context and env obs as input
+        if self.input_mode in ['context_obs']:
+            self.input_dim = env_obs_shape[0] + 768 # hard code here the input dim of meta context embedding
+        # context: only use meta context as input
+        elif self.input_mode in ['context']:
+            self.input_dim = 768
+        # obs: only use env obs as input
+        else: 
+            self.input_dim = env_obs_shape[0]
 
-        # conditioned context encoding on vae encoder
-        # if self.multitask_cfg.conditioned_on_context_encoding:
-        #     self.input_dim = env_obs_shape[0] + self.multitask_cfg.task_encoder_cfg.model_cfg.output_dim
-        # else:
-        #     self.input_dim = env_obs_shape[0]
-            # 2023/03/24 only receive onehot as input
-            # self.input_dim = 10
-        
         # 2023/03/22 only receive metadata encoding
-        self.input_dim = 768
+        # self.input_dim = 768
         
         # encoder
         self.trunk = self.build_mlp(input_dim=self.input_dim, 
@@ -160,15 +162,12 @@ class VAE_Encoder(Encoder):
     
     def forward(self, mtobs: MTObs, detach: bool = False):
         
-        # if self.multitask_cfg.conditioned_on_context_encoding:
-        #     env_obs = torch.cat((mtobs.env_obs, mtobs.task_info.encoding), dim=1)
-        # else:
-        #     # env_obs = mtobs.env_obs
-        #     # 2023/03/24 only receive onehot as VAE input
-        #     env_obs = mtobs.env_obs[:,12:]
-
-        # 2023/03/22 only receive metadata encoding as input
-        env_obs = mtobs.task_info.encoding
+        if self.input_mode in ['context_obs']:
+            env_obs = torch.cat([mtobs.env_obs, mtobs.task_info.encoding])
+        elif self.input_mode in ['context']:
+            env_obs = mtobs.task_info.encoding
+        else:
+            env_obs = mtobs.env_obs
         
         mu = self.mu_latent(self.trunk(env_obs))
         log_var = self.log_var_latent(self.trunk(env_obs))
@@ -187,6 +186,25 @@ class VAE_Encoder(Encoder):
 
         return z, mu, log_var, reconst
 
+
+class Alpha_net(nn.Module):
+    def __init__(
+            self,
+            input_dim,
+            hidden_dim=100,
+            output_dim=1,
+            ):
+        super().__init__()
+        self.trunk = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim)
+        )
+    
+    def forward(self, latent_encoding):
+        return self.trunk(latent_encoding)
 
 ###################################################
 ######### Implements from origin library ##########

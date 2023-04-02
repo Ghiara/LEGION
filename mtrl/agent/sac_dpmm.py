@@ -15,7 +15,7 @@ from mtrl.agent.abstract import Agent as AbstractAgent
 from mtrl.agent.ds.mt_obs import MTObs
 from mtrl.agent.ds.task_info import TaskInfo
 from mtrl.agent.components import encoder, moe_layer
-from mtrl.agent.components import decoder
+from mtrl.agent.components.encoder import Alpha_net
 from mtrl.env.types import ObsType
 from mtrl.logger import Logger
 from mtrl.replay_buffer import ReplayBuffer, ReplayBufferSample
@@ -124,14 +124,21 @@ class Agent(AbstractAgent):
             critic_cfg, env_obs_shape=env_obs_shape, action_shape=action_shape
         ).to(self.device)
         # TODO: change to shared alpha net or single alpha
-        self.log_alpha = torch.nn.Parameter(
-            torch.tensor(
-                [
-                    np.log(init_temperature, dtype=np.float32)
-                    for _ in range(self.num_envs)
-                ]
-            ).to(self.device)
-        )
+        if self.multitask_cfg.should_use_disentangled_alpha:
+            self.log_alpha = torch.nn.Parameter(
+                torch.tensor(
+                    [
+                        np.log(init_temperature, dtype=np.float32)
+                        for _ in range(self.num_envs)
+                    ]
+                ).to(self.device)
+            )
+        else:
+            #################################################################################
+            self.log_alpha = Alpha_net(input_dim=self.encoder_cfg.latent_dim).to(self.device)
+            self.log_alpha.apply(agent_utils.weight_init)
+            #################################################################################
+
         # self.log_alpha.requires_grad = True
         # set target entropy to -|A|
         self.target_entropy = -np.prod(action_shape)
@@ -293,7 +300,7 @@ class Agent(AbstractAgent):
             latent_encoding = self.encoder(mtobs=mtobs, detach=detach_encoder)
             return torch.cat((latent_encoding, context_encoding), dim=1), [], [], []
         
-    def get_alpha(self, env_index: TensorType) -> TensorType:
+    def get_alpha(self, env_index: TensorType, latent_obs:TensorType=None) -> TensorType:
         """Get the alpha value for the given environments.
 
         Args:
@@ -305,7 +312,10 @@ class Agent(AbstractAgent):
         if self.multitask_cfg.should_use_disentangled_alpha:
             return self.log_alpha[env_index].exp()
         else:
-            return self.log_alpha[0].exp()
+            # return self.log_alpha[0].exp()
+            #######################################
+            return self.log_alpha(latent_obs).exp()
+            #######################################
 
     def get_task_encoding(
         self, env_index: TensorType, modes: List[str], disable_grad: bool
@@ -442,7 +452,7 @@ class Agent(AbstractAgent):
         target_Q1, target_Q2 = self.critic_target(mtobs=mtobs, latent_obs = encoding ,action=policy_action)
         return (
             torch.min(target_Q1, target_Q2)
-            - self.get_alpha(env_index=batch.task_obs).detach() * log_pi
+            - self.get_alpha(env_index=batch.task_obs, latent_obs=encoding).detach() * log_pi
         )
     
     def get_critic_loss(self, batch:ReplayBufferSample, task_info:TaskInfo):
@@ -483,17 +493,17 @@ class Agent(AbstractAgent):
         if self.loss_reduction == "mean":
             
             policy_loss = (
-                self.get_alpha(batch.task_obs).detach() * log_pi - actor_Q
+                self.get_alpha(batch.task_obs, encoding).detach() * log_pi - actor_Q
             ).mean()
             alpha_loss = (
-                self.get_alpha(batch.task_obs)
+                self.get_alpha(batch.task_obs, encoding)
                 * (-log_pi - self.target_entropy).detach()
             ).mean()
 
         elif self.loss_reduction == "none":
 
-            policy_loss = self.get_alpha(batch.task_obs).detach() * log_pi - actor_Q
-            alpha_loss = (self.get_alpha(batch.task_obs) * (-log_pi - self.target_entropy).detach())
+            policy_loss = self.get_alpha(batch.task_obs, encoding).detach() * log_pi - actor_Q
+            alpha_loss = (self.get_alpha(batch.task_obs, encoding) * (-log_pi - self.target_entropy).detach())
         
         else:
             raise NotImplementedError('unable to compute policy loss, unsupported loss_reduction type: {}'.format(self.loss_reduction))
@@ -521,22 +531,8 @@ class Agent(AbstractAgent):
         assert not torch.isnan(log_var_q).any(), log_var_q
         assert not torch.isnan(latent_obs).any(), latent_obs
         
-        ###############################################################################################
-        # TODO:the dimension of mean & log_var should be smaller than latent dim, so adjust dimension #
-        ###############################################################################################
-        # batch_size, latent_dim = latent_obs.shape
-        # _, z_dim = mu_q.shape
-        # if z_dim < latent_dim and self.bnp_model.model is not None:
-        #     residual_dim = latent_dim - z_dim
-        #     # add zeros if mean and logvar are shorter
-        #     align_tensor = torch.zeros([batch_size,residual_dim], requires_grad=False).to(mu_q.device)
-        #     mu_q = torch.cat((mu_q, align_tensor), dim=-1)
-        #     log_var_q = torch.cat((log_var_q, align_tensor), dim=-1)
-        # else:
-        #     pass
         
         if self.bnp_model.model is None:
-            # kl_qz_pz = -0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), dim=1)
             kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), dim = 1), dim = 0).to(self.device)
         
         else:
@@ -651,14 +647,6 @@ class Agent(AbstractAgent):
             kwargs_to_compute_gradient (Dict[str, Any]):
 
         """
-        ######################################################################################
-        # actor_loss, alpha_loss = self.get_policy_alpha_loss(batch=batch, task_info=task_info)
-        
-        # if self.loss_reduction == "mean":
-        #     logger.log("train/actor_loss", actor_loss, step)
-        # elif self.loss_reduction == "none":
-        #     logger.log("train/actor_loss", actor_loss.mean(), step)
-        #######################################################################################
         
         # detached context encoder, so we don't update it with the actor loss
         mtobs = MTObs(
@@ -672,19 +660,17 @@ class Agent(AbstractAgent):
         _, pi, log_pi, log_std = self.actor(mtobs=mtobs, latent_obs=encoding)
         actor_Q1, actor_Q2 = self.critic(mtobs=mtobs, latent_obs=encoding ,action=pi)
         ###################################################################################
-        # _, pi, log_pi, log_std = self.actor(mtobs=mtobs, detach_encoder=True)
-        # actor_Q1, actor_Q2 = self.critic(mtobs=mtobs, action=pi, detach_encoder=True)
 
         actor_Q = torch.min(actor_Q1, actor_Q2)
         
         if self.loss_reduction == "mean":
             actor_loss = (
-                self.get_alpha(batch.task_obs).detach() * log_pi - actor_Q
+                self.get_alpha(batch.task_obs, encoding).detach() * log_pi - actor_Q
             ).mean()
             logger.log("train/actor_loss", actor_loss, step)
 
         elif self.loss_reduction == "none":
-            actor_loss = self.get_alpha(batch.task_obs).detach() * log_pi - actor_Q
+            actor_loss = self.get_alpha(batch.task_obs, encoding).detach() * log_pi - actor_Q
             logger.log("train/actor_loss", actor_loss.mean(), step)
 
         # logger.log("train/actor_target_entropy", self.target_entropy, step)
@@ -714,21 +700,16 @@ class Agent(AbstractAgent):
 
         # alpha loss
         self.log_alpha_optimizer.zero_grad()
-        ##############################################################
-        # if self.loss_reduction == "mean":
-        #     logger.log("train/alpha_loss", alpha_loss, step)
-        # elif self.loss_reduction == "none":
-        #     logger.log("train/alpha_loss", alpha_loss.mean(), step)
-        ##############################################################
+
         if self.loss_reduction == "mean":
             alpha_loss = (
-                self.get_alpha(batch.task_obs)
+                self.get_alpha(batch.task_obs, encoding)
                 * (-log_pi - self.target_entropy).detach()
             ).mean()
             logger.log("train/alpha_loss", alpha_loss, step)
         elif self.loss_reduction == "none":
             alpha_loss = (
-                self.get_alpha(batch.task_obs)
+                self.get_alpha(batch.task_obs, encoding)
                 * (-log_pi - self.target_entropy).detach()
             )
             logger.log("train/alpha_loss", alpha_loss.mean(), step)
@@ -795,6 +776,7 @@ class Agent(AbstractAgent):
         """
         self.task_encoder_optimizer.step()
 
+    # 2023/04/02 function out of date
     def update_encoder_critic_without_reconst(self, 
         batch:ReplayBufferSample,
         task_info: TaskInfo,
@@ -837,7 +819,7 @@ class Agent(AbstractAgent):
         ##############################################################
         return latent_variable
 
-    def update_encoder_critic_with_reconst(self,
+    def update_vae(self,
         batch:ReplayBufferSample,
         task_info: TaskInfo,
         logger: Logger,
@@ -846,7 +828,6 @@ class Agent(AbstractAgent):
         *args,
         **kwargs,):
         
-        ##############################################################
         # update VAE using information bottleneck via DPMixture Model
         mtobs = MTObs(env_obs=batch.env_obs, task_obs=batch.task_obs, task_info=task_info)
         latent_variable, latent_mu, latent_log_var, reconstruction =self.encode(mtobs=mtobs)
@@ -868,16 +849,6 @@ class Agent(AbstractAgent):
             # ELBO objective (only for logging)
             vae_loss_to_log = vae_loss
             logger.log("train/vae_loss", vae_loss_to_log, step)
-        ##############################################################
-
-        # update critic
-        self.update_critic(
-            batch=batch,
-            task_info=task_info,
-            logger=logger,
-            step=step,
-            kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
-        )
 
         return latent_variable
 
@@ -938,21 +909,36 @@ class Agent(AbstractAgent):
         )
         
         # update VAE & critic
-        if (self.encoder_cfg.type in ['vae'] and 
-            self.encoder_cfg.should_reconstruct):
-            # disentanglement update
-            latent_variable = self.update_encoder_critic_with_reconst(
+        # if (self.encoder_cfg.type in ['vae'] and 
+        #     self.encoder_cfg.should_reconstruct):
+        #     # disentanglement update
+        #     latent_variable = self.update_encoder_critic_with_reconst(
+        #         batch, task_info, 
+        #         logger, step, 
+        #         kwargs_to_compute_gradient
+        #         )
+        # else:
+        #     # entanglement update
+        #     latent_variable = self.update_encoder_critic_without_reconst(
+        #         batch, task_info, 
+        #         logger, step, 
+        #         kwargs_to_compute_gradient
+        #         )
+        if self.encoder_cfg.type in ['vae']:
+            latent_variable = self.update_vae(
                 batch, task_info, 
                 logger, step, 
                 kwargs_to_compute_gradient
                 )
-        else:
-            # entanglement update
-            latent_variable = self.update_encoder_critic_without_reconst(
-                batch, task_info, 
-                logger, step, 
-                kwargs_to_compute_gradient
-                )
+
+        # update critic
+        self.update_critic(
+            batch=batch,
+            task_info=task_info,
+            logger=logger,
+            step=step,
+            kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
+        )
 
         # update actor & alpha
         if step % self.actor_update_freq == 0:
@@ -1066,10 +1052,14 @@ class Agent(AbstractAgent):
         """
         if name == "actor":
             return list(self.actor.model.parameters())
+        
+        
         elif name in ["log_alpha", "alpha"]:
-            return [self.log_alpha]
-        # elif name == "vae_encoder":
-        #     return list(self.vae_encoder.parameters())
+            if self.multitask_cfg.should_use_disentangled_alpha:
+                return [self.log_alpha]
+            else:
+                return list(self._components[name].parameters())
+
         else:
             return list(self._components[name].parameters())
     
