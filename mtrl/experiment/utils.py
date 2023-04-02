@@ -5,8 +5,10 @@ from typing import List
 
 import hydra
 import torch
+import numpy as np
 
 from mtrl.utils.types import ConfigType
+from mtrl.env.types import EnvType
 from mtrl.utils.utils import set_seed
 
 

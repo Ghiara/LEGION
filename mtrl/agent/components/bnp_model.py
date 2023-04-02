@@ -77,7 +77,7 @@ class BNPModel:
                                                   initname='randexamples',
                                                   K=1, gamma0=self.gamma0,
                                                   sF=self.sF, ECovMat='eye',
-                                                  moves='birth,merge', nBatch=1, nLap=self.num_lap,
+                                                  moves='birth,merge', nBatch=5, nLap=self.num_lap,
                                                   **dict(
                                                       sum(map(list, [self.birth_kwargs.items(),
                                                                      self.merge_kwargs.items()]), []))
@@ -90,7 +90,7 @@ class BNPModel:
                                                   initname=self.info_dict['task_output_path'],
                                                   K=self.info_dict['K_history'][-1], gamma0=self.gamma0,
                                                   sF=self.sF, ECovMat='eye',
-                                                  moves='birth,merge', nBatch=1, nLap=self.num_lap,
+                                                  moves='birth,merge', nBatch=5, nLap=self.num_lap,
                                                   **dict(
                                                       sum(map(list, [self.birth_kwargs.items(),
                                                                      self.merge_kwargs.items()]), []))

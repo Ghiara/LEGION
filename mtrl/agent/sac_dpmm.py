@@ -79,6 +79,7 @@ class Agent(AbstractAgent):
         # use context metadata
         self.should_use_task_encoder = multitask_cfg.should_use_task_encoder
         self.should_use_dpmm = multitask_cfg.should_use_dpmm
+        self.kl_div_update_freq = multitask_cfg.dpmm_cfg.kl_div_update_freq
         self.discount = discount
         self.critic_tau = critic_tau
         self.actor_update_freq = actor_update_freq # 1
@@ -86,11 +87,11 @@ class Agent(AbstractAgent):
         
         ####################################################
         if self.should_use_dpmm:
-            self.alpha_kl_z = multitask_cfg.dpmm_cfg.alpha_kl_z
+            self.beta_kl_z = multitask_cfg.dpmm_cfg.beta_kl_z
             self.dpmm_update_freq = multitask_cfg.dpmm_cfg.dpmm_update_freq
             self.dpmm_update_start_step = multitask_cfg.dpmm_cfg.dpmm_update_start_step
         else:
-            self.alpha_kl_z = multitask_cfg.dpmm_cfg.alpha_kl_z
+            self.beta_kl_z = multitask_cfg.dpmm_cfg.beta_kl_z
             self.dpmm_update_freq = None
             self.dpmm_update_start_step = None
         
@@ -149,8 +150,6 @@ class Agent(AbstractAgent):
         if self.should_use_dpmm and 'dpmm_cfg' in multitask_cfg:
             self.dpmm_cfg=multitask_cfg.dpmm_cfg
             self.bnp_model = self._make_bnpModel(self.dpmm_cfg)
-            # name = 'dpmm'
-            # self._components[name] = self.bnp_model
         else:
             self.dpmm_cfg = None
             self.bnp_model = None
@@ -177,6 +176,11 @@ class Agent(AbstractAgent):
             )
         self.loss_reduction = loss_reduction # mean
         
+        ##########################################################################
+        if self.encoder_cfg.should_reconstruct:
+            self.reconstruction_loss = nn.MSELoss(reduction='sum').to(self.device)
+        ##########################################################################
+        
         if self.encoder_cfg.type == 'vae':
             self._optimizers = {
                 "encoder": self.encoder_optimizer,
@@ -200,11 +204,11 @@ class Agent(AbstractAgent):
             ).to(self.device) # components.task_encoder.TaskEncoder
             name = "task_encoder"
             self._components[name] = self.task_encoder
-            self.task_encoder_optimizer = hydra.utils.instantiate(
-                self.multitask_cfg.task_encoder_cfg.optimizer_cfg,
-                params=self.get_parameters(name=name),
-            )
-            self._optimizers[name] = self.task_encoder_optimizer
+            # self.task_encoder_optimizer = hydra.utils.instantiate(
+            #     self.multitask_cfg.task_encoder_cfg.optimizer_cfg,
+            #     params=self.get_parameters(name=name),
+            # )
+            # self._optimizers[name] = self.task_encoder_optimizer
 
         if should_complete_init:
             self.complete_init(cfg_to_load_model=cfg_to_load_model)
@@ -507,13 +511,11 @@ class Agent(AbstractAgent):
         method: soft, using soft assignment to calculate KLD between q(z|s) and DPMixture p(z)
         Input: 
             latent_obs: latent encoding from encoder, concat with context encoding
-            
-            mu_q
-            log_var_q
-            mu_p (optional)
-            log_var_p (optional)
+            mu_q: mean vector of latent encoding
+            log_var_q: log variance vector of latent encoding
+
         Output:
-            KL divergence value between 2 gaussian distributions
+            KL divergence value between 2 gaussian distributions KL(q(z|s)||p(z))
         '''
         assert not torch.isnan(mu_q).any(), mu_q
         assert not torch.isnan(log_var_q).any(), log_var_q
@@ -534,7 +536,8 @@ class Agent(AbstractAgent):
         #     pass
         
         if self.bnp_model.model is None:
-            kl_qz_pz = -0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), dim=1)
+            # kl_qz_pz = -0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), dim=1)
+            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), dim = 1), dim = 0).to(self.device)
         
         else:
             # get probability assignment of each z to each component & parameters of each component distribution
@@ -552,16 +555,16 @@ class Agent(AbstractAgent):
                 kl_qz_pz = torch.zeros(B)
                 # build each component distribution & calculate the kl divergence D_kl(q || p)
                 for k in range(K):
-                      prob_k = prob_comps[:, k]
-                      dist_k = torch.distributions.MultivariateNormal(
-                          loc=self.bnp_model.comp_mu[k],
-                          covariance_matrix=torch.diag_embed(self.bnp_model.comp_var[k])
-                      )
-                      expanded_dist_k = dist_k.expand(dist.batch_shape)    # batch_shape [batch_size], event_shape [latent_dim]
-                      kld_k = torch.distributions.kl_divergence(dist, expanded_dist_k)   #  shape [batch_shape, ]
-                      # soft assignment
-                      kl_qz_pz += torch.from_numpy(prob_k) * kld_k
-            
+                    prob_k = prob_comps[:, k]
+                    dist_k = torch.distributions.MultivariateNormal(
+                        loc=self.bnp_model.comp_mu[k],
+                        covariance_matrix=torch.diag_embed(self.bnp_model.comp_var[k])
+                    )
+                    expanded_dist_k = dist_k.expand(dist.batch_shape)    # batch_shape [batch_size], event_shape [latent_dim]
+                    kld_k = torch.distributions.kl_divergence(dist, expanded_dist_k)   #  shape [batch_shape, ]
+                    # soft assignment
+                    kl_qz_pz += torch.from_numpy(prob_k) * kld_k
+                
             else: # kl_method = hard
                 # calcualte kl divergence via hard assignment: assigning to the most  likely learned DPMM cluster
                 mu_comp = torch.zeros_like(mu_q)
@@ -571,8 +574,10 @@ class Agent(AbstractAgent):
                     var_comp[i, :] = self.bnp_model.comp_var[k]
                 var_q = torch.exp(0.5 * log_var_q)**2
                 kl_qz_pz = self.bnp_model.kl_divergence_diagonal_gaussian(mu_q, mu_comp, var_q, var_comp)
+            
+            kld_loss = torch.mean(kl_qz_pz).to(self.device)
         
-        return kl_qz_pz
+        return kld_loss
         
     def update_critic(
         self,
@@ -807,10 +812,10 @@ class Agent(AbstractAgent):
             mtobs = MTObs(env_obs=batch.env_obs, task_obs=batch.task_obs, task_info=task_info)
             
             latent_variable, latent_mu, latent_log_var, _ =self.encode(mtobs=mtobs)
-            kl_qz_pz = self.kl_divergence(latent_obs=latent_variable, mu_q=latent_mu, log_var_q=latent_log_var)
+            kld_loss = self.kl_divergence(latent_obs=latent_variable, mu_q=latent_mu, log_var_q=latent_log_var)
             
             # update cluster loss
-            kld_loss = torch.sum(self.alpha_kl_z * kl_qz_pz).to(latent_variable.device)
+            kld_loss = self.beta_kl_z * kld_loss
             kld_loss.backward(retain_graph=True)
         ##############################################################
         
@@ -845,24 +850,24 @@ class Agent(AbstractAgent):
         # update VAE using information bottleneck via DPMixture Model
         mtobs = MTObs(env_obs=batch.env_obs, task_obs=batch.task_obs, task_info=task_info)
         latent_variable, latent_mu, latent_log_var, reconstruction =self.encode(mtobs=mtobs)
-        # 1. KL Divergence
-        kl_qz_pz = self.kl_divergence(latent_obs=latent_variable, mu_q=latent_mu, log_var_q=latent_log_var)
-        kld_loss = torch.sum(kl_qz_pz).to(self.device)
         
-        # 2. reconstruction loss 
-        # since we assume a gaussian latent space, this term is equivalent to MSE loss
-        reconstruction_loss = F.mse_loss(input=reconstruction, target=batch.env_obs, reduction='mean').to(self.device)
+        # update the VAE according to the frequence
+        if (step+1) % self.kl_div_update_freq == 0:
+            # 1. KL Divergence
+            kld_loss = self.kl_divergence(latent_obs=latent_variable, mu_q=latent_mu, log_var_q=latent_log_var)
 
-        # 3. total VAE loss E[ logP(x|z) - alpha * KL[q(z)|p(z)] ]
-        vae_loss = reconstruction_loss + self.alpha_kl_z * kld_loss
-        
-        # 4. backpropargation
-        self.encoder_optimizer.zero_grad()
-        vae_loss.backward()
-        self.encoder_optimizer.step()
-        # ELBO objective (only for logging)
-        vae_loss_to_log = vae_loss
-        logger.log("train/vae_loss", vae_loss_to_log, step)
+            # 2. reconstruction loss 
+            reconstruction_loss = self.reconstruction_loss(reconstruction, task_info.encoding)
+            # 3. total VAE loss E[ logP(x|z) - beta * KL[q(z)|p(z)] ]
+            vae_loss = reconstruction_loss + self.beta_kl_z * kld_loss
+            
+            # 4. backpropargation
+            self.encoder_optimizer.zero_grad()
+            vae_loss.backward()
+            self.encoder_optimizer.step()
+            # ELBO objective (only for logging)
+            vae_loss_to_log = vae_loss
+            logger.log("train/vae_loss", vae_loss_to_log, step)
         ##############################################################
 
         # update critic
@@ -973,19 +978,19 @@ class Agent(AbstractAgent):
             )
 
         # update metadata context encoder
-        if self.should_use_task_encoder:
-            task_info = self.get_task_info(
-                task_encoding=task_encoding,
-                component_name="task_encoder",
-                env_index=batch.task_obs,
-            )
-            self.update_task_encoder(
-                batch=batch,
-                task_info=task_info,
-                logger=logger,
-                step=step,
-                kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
-            )
+        # if self.should_use_task_encoder:
+        #     task_info = self.get_task_info(
+        #         task_encoding=task_encoding,
+        #         component_name="task_encoder",
+        #         env_index=batch.task_obs,
+        #     )
+        #     self.update_task_encoder(
+        #         batch=batch,
+        #         task_info=task_info,
+        #         logger=logger,
+        #         step=step,
+        #         kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
+        #     )
         ############################################################################
         # update DPMM model at certain interval
         if self.should_use_dpmm:

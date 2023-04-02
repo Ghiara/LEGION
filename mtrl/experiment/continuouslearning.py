@@ -1,4 +1,4 @@
-
+import errno
 import time
 from typing import Dict, List, Tuple
 import hydra
@@ -8,10 +8,9 @@ import torch
 from mtrl.agent import utils as agent_utils
 from mtrl.env import builder as env_builder
 from mtrl.env.types import EnvType
-from mtrl.env.vec_env import VecEnv  # type: ignore
+from mtrl.env.vec_env import VecEnv, CRL_Env  # type: ignore
 from mtrl.experiment import experiment
 from mtrl.utils.types import ConfigType, EnvMetaDataType, EnvsDictType, ListConfigType
-from mtrl.utils.utils import pretty_print
 
 
 class Experiment(experiment.Experiment):
@@ -63,24 +62,39 @@ class Experiment(experiment.Experiment):
     def build_envs(self) -> Tuple[EnvsDictType, EnvMetaDataType]:
         
         benchmark = hydra.utils.instantiate(self.config.env.benchmark)
-
         envs = {}
         
-        mode = "train"
-        envs[mode], env_id_to_task_map = env_builder.build_metaworld_vec_env(
-            config=self.config, benchmark=benchmark, mode=mode, env_id_to_task_map=None
-        )
-        mode = "eval"
-        envs[mode], env_id_to_task_map = env_builder.build_metaworld_vec_env(
-            config=self.config,
-            benchmark=benchmark,
-            mode="train",
-            env_id_to_task_map=env_id_to_task_map,
-        )
-        ##########################################
+        if self.config.experiment.training_mode in ['multitask']:
+            mode = "train"
+            envs[mode], env_id_to_task_map = env_builder.build_metaworld_vec_env(
+                config=self.config, benchmark=benchmark, mode=mode, env_id_to_task_map=None
+            )
+            mode = "eval"
+            envs[mode], env_id_to_task_map = env_builder.build_metaworld_vec_env(
+                config=self.config,
+                benchmark=benchmark,
+                mode="train",
+                env_id_to_task_map=env_id_to_task_map,
+            )
+        else: # CRL
+            mode = "train"
+            env_list, env_id_to_task_map = env_builder.build_metaworld_env_list(
+                config=self.config, benchmark=benchmark, mode=mode, env_id_to_task_map=None
+            )
+            envs[mode] = CRL_Env(env_list=env_list, 
+                                 config=self.config, 
+                                 ordered_task_list=list(env_id_to_task_map.keys()))
+            mode = "eval"
+            envs[mode], env_id_to_task_map = env_builder.build_metaworld_vec_env(
+                config=self.config,
+                benchmark=benchmark,
+                mode="train", # in MT setting there is no eval mode
+                env_id_to_task_map=env_id_to_task_map,
+            ) # for CRL the eval phase use the vec env
+        
         # build a set of envs for video recording
         if self.config.experiment.save_video:
-            list_envs, env_id_to_task_map_recording = env_builder.build_metaworld_env_list_for_eval(
+            list_envs, env_id_to_task_map_recording = env_builder.build_metaworld_env_list(
                 config=self.config,
                 benchmark=benchmark,
                 mode="train",
@@ -88,16 +102,14 @@ class Experiment(experiment.Experiment):
             )
             self.list_envs = list_envs
             self.env_id_to_task_map_recording = env_id_to_task_map_recording
-        ##########################################
 
-        # In MT10 and MT50, the tasks are always sampled in the train mode.
-        # For more details, refer https://github.com/rlworkgroup/metaworld
 
         max_episode_steps = 150
         # hardcoding the steps as different environments return different
         # values for max_path_length. MetaWorld uses 150 as the max length.
         metadata = self.get_env_metadata(
-            env=envs["train"],
+            # env=envs["train"], # change to eval to suit for CRL
+            env=envs['eval'],
             max_episode_steps=max_episode_steps,
             ordered_task_list=list(env_id_to_task_map.keys()),
             config=self.config
@@ -247,14 +259,18 @@ class Experiment(experiment.Experiment):
         # print('task obs: \n', multitask_obs['env_obs'])
         # print('task obs: \n', multitask_obs['task_obs'])
         
-        self.run_multitask()
-    
+        try:
+            if self.config.experiment.training_mode in ['multitask']:
+                self.run_multitask()
+            else:
+                self.run_crl()
+        except IOError as e: # prevent from pipe broken error [Errno 32]
+            if e.errno == errno.EPIPE:
+                pass
 
-
-    
     def run_multitask(self) -> None:
         
-        """Run the experiment."""
+        """Run the experiment under multitask setting."""
         exp_config = self.config.experiment
         vec_env = self.envs["train"]
         
@@ -305,9 +321,10 @@ class Experiment(experiment.Experiment):
 
                 # evaluate agent periodically
                 if step % exp_config.eval_freq == 0:
-                    self.evaluate_vec_env_of_tasks(
-                        vec_env=self.envs["eval"], step=step, episode=episode
-                    )
+                    
+                    self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
+                                                   step=step, episode=episode)
+                    
                     if exp_config.save.model:
                         self.agent.save(
                             self.model_dir,
@@ -409,7 +426,185 @@ class Experiment(experiment.Experiment):
         self.replay_buffer.delete_from_filesystem(self.buffer_dir)
         self.close_envs()
         print('Training finished')
-    
+
+    ##############################################
+    ########### Run continual learning ###########
+    ##############################################
+    def run_crl(self):
+
+        """Run the experiment under crl setting."""
+
+        exp_config = self.config.experiment
+        assert exp_config.training_mode in ['crl_queue', 'crl_expand'], \
+            'uncorrect training_mode for crl training.'
+        
+        # crl_env = CRL_Env instance
+        crl_env = self.envs["train"]
+        
+
+        # logging value init
+        success, episode_reward, episode_step, done = [
+            np.full(shape=crl_env.current_env_num, fill_value=fill_value)
+            for fill_value in [0.0, 0.0, 0, True]
+        ]
+        info = {}
+
+        assert self.start_step >= 0
+        episode = self.start_step // self.max_episode_steps
+        if self.start_step > 0:
+            crl_env.global_step = self.start_step
+        
+        ########################
+        ### start train loop ###
+        ########################
+        # init envs       
+        start_time = time.time()
+        crl_obs = crl_env.reset()
+        env_indices = crl_obs["task_obs"]
+        phase = 0
+
+        for step in range(self.start_step, exp_config.num_train_steps):
+            '''
+            solve when to check the switch of environments queue
+            how to evaluate the successrate once switch the envs in between the episode
+            when to manage the replay buffer
+            '''
+
+            # log after every episode
+            if step % self.max_episode_steps == 0:  # Perform logging & Evaluation after every episode
+                if step > 0:
+                    
+                    success = (success > 0).astype("float")
+                    for index, _ in enumerate(env_indices):
+                        self.logger.log(
+                            f"train/success_env_index_{index}",
+                            success[index],
+                            step,
+                        )
+                    self.logger.log("train/success", success.mean(), step)
+                    
+                    for index, env_index in enumerate(env_indices):
+                        self.logger.log(
+                            f"train/episode_reward_env_index_{index}",
+                            episode_reward[index],
+                            step,
+                        )
+                        self.logger.log(f"train/env_index_{index}", env_index, step, tb_log=False)
+
+                    self.logger.log("train/duration", time.time() - start_time, step, tb_log=False)
+                    start_time = time.time()
+                    self.logger.dump(step) # dump to file & console
+
+                # evaluate agent periodically
+                if step % exp_config.eval_freq == 0:
+                    
+                    self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
+                                                   step=step, episode=episode)
+                    
+                    if exp_config.save.model:
+                        self.agent.save(
+                            self.model_dir,
+                            step=step,
+                            retain_last_n=exp_config.save.model.retain_last_n,
+                        )
+                    if exp_config.save.buffer.should_save:
+                        self.replay_buffer.save(
+                            self.buffer_dir,
+                            size_per_chunk=exp_config.save.buffer.size_per_chunk,
+                            num_samples_to_save=exp_config.save.buffer.num_samples_to_save,
+                        )
+                episode += 1
+                # reset logged value
+                episode_reward = np.full(shape=vec_env.num_envs, fill_value=0.0)
+                if "success" in self.metrics_to_track:
+                    success = np.full(shape=vec_env.num_envs, fill_value=0.0)
+
+                self.logger.log("train/episode", episode, step, tb_log=False)
+
+            # interactive with the envs
+            if step < exp_config.init_steps:
+                # warmup steps
+                action = np.asarray(
+                    [self.action_space.sample() for _ in range(crl_env.current_env_num)]
+                )  # (num_envs, action_dim)
+
+            else:
+                with agent_utils.eval_mode(self.agent):
+                    train_mode = crl_env.set_train_mode()
+                    action = self.agent.sample_action(
+                        multitask_obs=crl_obs,
+                        modes=[
+                            train_mode,
+                        ],
+                    )  # (num_envs, action_dim)
+
+            # run training update (by default each step update 1 time)
+            if step >= exp_config.init_steps:
+                num_updates = (
+                    exp_config.init_steps if step == exp_config.init_steps else 1
+                )
+                for _ in range(num_updates):
+                    self.agent.update(self.replay_buffer, self.logger, step, 
+                                      task_name_to_idx=self.task_name_to_idx) # used for evaluation
+            
+            # Interaction with envs
+            next_crl_obs, reward, done, info = crl_env.step(action)
+            if self.should_reset_env_manually:
+                if (episode_step[0] + 1) % self.max_episode_steps == 0:
+                    # we do a +2 because we started the counting from 0 and episode_step is incremented after updating the buffer
+                    next_crl_obs = crl_env.reset()
+                    env_indices = next_crl_obs['task_obs']
+
+            episode_reward += reward
+            success += np.asarray([x["success"] for x in info])
+
+            # allow infinite bootstrap
+            # Add transitions into replay buffer
+            for index, env_index in enumerate(env_indices):
+                done_bool = (
+                    0
+                    if episode_step[index] + 1 == self.max_episode_steps
+                    else float(done[index])
+                )
+                # add each separate env data into buffer
+                if index not in self.envs_to_exclude_during_training:
+                    self.replay_buffer.add(
+                        crl_obs["env_obs"][index],
+                        action[index],
+                        reward[index],
+                        next_crl_obs["env_obs"][index],
+                        done_bool,
+                        task_obs=env_index,
+                        # one_hot=multitask_obs["one_hot"][index],
+                        # true_label=index
+                    )
+
+            crl_obs = next_crl_obs
+            episode_step += 1
+        ######################################
+        ########### End of Training ##########
+        ######################################
+
+        
+        ####################################################################
+        if self.config.experiment.eval_latent_representation:
+            print('saving latent clustering data for further evaluation...')
+            self.agent.evaluate_latent_clustering(self.replay_buffer, 
+                                                  self.task_name_to_idx, 
+                                                  num_save=self.config.experiment.num_save,
+                                                  prefix='final'
+                                                  )
+
+        if self.config.experiment.save_video:
+            print('start recording videos ...')
+            self.record_videos()
+            print('video recording finished. Check folder:{}'.format(self.video.dir_name))
+        ####################################################################
+        
+        self.replay_buffer.delete_from_filesystem(self.buffer_dir)
+        self.close_envs()
+        print('Training finished')
+
 
     def collect_trajectory(self, vec_env: VecEnv, num_steps: int) -> None:
         multitask_obs = vec_env.reset()

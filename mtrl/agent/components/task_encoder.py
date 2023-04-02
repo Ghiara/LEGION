@@ -80,27 +80,27 @@ class TaskEncoder(base_component.Component):
             pretrained_embedding_dim = pretrained_embedding.shape[1] # Input of pretrained NLP model = 768 in mt10
             
             # TODO modify to suitable for CRL input
-            pretrained_embedding = nn.Embedding.from_pretrained(
+            self.pretrained_embedding = nn.Embedding.from_pretrained(
                 embeddings=pretrained_embedding,
                 freeze=True,
-            )
+                )
 
-            projection_layer = nn.Sequential(
-                nn.Linear(
-                    in_features=pretrained_embedding_dim, out_features=2 * embedding_dim # (768, 100)
-                ),
-                nn.ReLU(),
-                # nn.Linear(in_features=2 * embedding_dim, out_features=embedding_dim),
-                nn.Linear(in_features=2 * embedding_dim, out_features=output_dim), # (100, output)
-                nn.ReLU(),
-            )
-            projection_layer.apply(agent_utils.weight_init)
+            # projection_layer = nn.Sequential(
+            #     nn.Linear(
+            #         in_features=pretrained_embedding_dim, out_features=2 * embedding_dim # (768, 100)
+            #     ),
+            #     nn.ReLU(),
+            #     # nn.Linear(in_features=2 * embedding_dim, out_features=embedding_dim),
+            #     nn.Linear(in_features=2 * embedding_dim, out_features=output_dim), # (100, output)
+            #     nn.ReLU(),
+            #     )
+            # projection_layer.apply(agent_utils.weight_init)
             
-            self.embedding = nn.Sequential(  # type: ignore [call-overload]
-                pretrained_embedding,
-                nn.ReLU(),
-                projection_layer,
-            )
+            # self.embedding = nn.Sequential(  # type: ignore [call-overload]
+            #     pretrained_embedding,
+            #     nn.ReLU(),
+            #     projection_layer,
+            # )
         ##########################################################################################
         else:
             self.embedding = nn.Sequential(
@@ -124,4 +124,5 @@ class TaskEncoder(base_component.Component):
 
     def forward(self, env_index: TensorType) -> TensorType:
         # return self.trunk(self.embedding(env_index))
-        return self.embedding(env_index)
+        # return self.embedding(env_index)
+        return self.pretrained_embedding(env_index)

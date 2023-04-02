@@ -85,7 +85,7 @@ class VAE_Encoder(Encoder):
             multitask_cfg: ConfigType,
             # feature_dim: int, # 50
             num_layers: int, # 2
-            hidden_dim: int, # 50
+            hidden_dim: int, # 500
             latent_dim: int, # 10
             type:str,
             should_reconstruct:bool,
@@ -100,37 +100,15 @@ class VAE_Encoder(Encoder):
         self.should_reconstruct = should_reconstruct
 
         # conditioned context encoding on vae encoder
-        if self.multitask_cfg.conditioned_on_context_encoding:
-            self.input_dim = env_obs_shape[0] + self.multitask_cfg.task_encoder_cfg.model_cfg.output_dim
-        else:
-            self.input_dim = env_obs_shape[0]
+        # if self.multitask_cfg.conditioned_on_context_encoding:
+        #     self.input_dim = env_obs_shape[0] + self.multitask_cfg.task_encoder_cfg.model_cfg.output_dim
+        # else:
+        #     self.input_dim = env_obs_shape[0]
             # 2023/03/24 only receive onehot as input
             # self.input_dim = 10
         
         # 2023/03/22 only receive metadata encoding
-        # self.input_dim = self.multitask_cfg.task_encoder_cfg.model_cfg.output_dim
-
-        # self.trunk = agent_utils.build_mlp(
-        #     input_dim=self.input_dim,
-        #     hidden_dim=hidden_dim,
-        #     num_layers=num_layers,
-        #     output_dim=hidden_dim, # not used
-        #     last_activation=True # shared layers last output using ReLU
-        # )
-        # # output head mu, mean of gaussian
-        # self.mu_latent = agent_utils.build_mlp(
-        #     input_dim=hidden_dim,
-        #     hidden_dim=hidden_dim, # not used
-        #     output_dim=latent_dim,
-        #     num_layers=0
-        # )
-        # # output head log_variance
-        # self.logvar_latent = agent_utils.build_mlp(
-        #     input_dim=hidden_dim,
-        #     hidden_dim=hidden_dim, # not used
-        #     output_dim=latent_dim,
-        #     num_layers=0
-        # )
+        self.input_dim = 768
         
         # encoder
         self.trunk = self.build_mlp(input_dim=self.input_dim, 
@@ -144,9 +122,9 @@ class VAE_Encoder(Encoder):
         # decoder
         if self.should_reconstruct:
             self.decoder = self.build_mlp(input_dim=latent_dim,
-                                          hidden_dim=100,
+                                          hidden_dim=hidden_dim,
                                           output_dim=self.input_dim,
-                                          num_layers=1,
+                                          num_layers=num_layers+1,
                                           output_activation=False)
 
 
@@ -159,7 +137,7 @@ class VAE_Encoder(Encoder):
         # input layer
         mods = [nn.Linear(input_dim, hidden_dim), nn.ReLU()]
         # hidden layer
-        for _ in range(num_layers):
+        for _ in range(num_layers-1):
             mods += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU()]
         # output_layer
         if output_activation:
@@ -182,15 +160,15 @@ class VAE_Encoder(Encoder):
     
     def forward(self, mtobs: MTObs, detach: bool = False):
         
-        if self.multitask_cfg.conditioned_on_context_encoding:
-            env_obs = torch.cat((mtobs.env_obs, mtobs.task_info.encoding), dim=1)
-        else:
-            env_obs = mtobs.env_obs
-            # 2023/03/24 only receive onehot as VAE input
-            # env_obs = mtobs.env_obs[:,12:]
+        # if self.multitask_cfg.conditioned_on_context_encoding:
+        #     env_obs = torch.cat((mtobs.env_obs, mtobs.task_info.encoding), dim=1)
+        # else:
+        #     # env_obs = mtobs.env_obs
+        #     # 2023/03/24 only receive onehot as VAE input
+        #     env_obs = mtobs.env_obs[:,12:]
 
         # 2023/03/22 only receive metadata encoding as input
-        # env_obs = obs.task_info.encoding
+        env_obs = mtobs.task_info.encoding
         
         mu = self.mu_latent(self.trunk(env_obs))
         log_var = self.log_var_latent(self.trunk(env_obs))
@@ -198,7 +176,7 @@ class VAE_Encoder(Encoder):
         z = self.sample(mu, log_var)
 
         if self.should_reconstruct:
-            reconst = self.decoder(z)
+            reconst = torch.tanh(self.decoder(z))
         else:
             reconst = None
         
