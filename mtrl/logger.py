@@ -215,12 +215,12 @@ class Logger(object):
         if self.use_tb and tb_log:
             self.tb_writer.add_scalar(tag='{}/{}'.format(mode, key), scalar_value=value, global_step=step)
 
-    def log_text(self, key, content, step):
+    def log_text(self, keys, content, step):
         '''
         used to log important hyperparameters like env idx to embedding map
         '''
-        assert key.startswith("train") or key.startswith("eval")
-        mode, key = key.split("/", 1)
+        assert keys.startswith("train") or keys.startswith("eval")
+        mode, key = keys.split("/", 1)
         if self.tb_writer is None:
             with open(self._log_dir+'/{}_{}.json'.format(mode, key), 'w') as fp:
                 json.dump(content, fp)
@@ -231,7 +231,7 @@ class Logger(object):
                     self.tb_writer.add_text(tag='{}/{}'.format(mode,key), text_string='{}:{}'.format(k, val), global_step=count)
                     count += 1
             else:
-                self.tb_writer.add_text(tag='{}/{}'.format(mode,key), text_string=content, global_step=step)
+                self.tb_writer.add_text(tag='{}/{}'.format(mode,key), text_string=str(content), global_step=step)
 
 
     def dump(self, step):
@@ -248,29 +248,30 @@ class CRL_Metrics():
 
         self.save_dir = save_dir
 
-        self.average_success = []
-        self.forgetting = []
-        self.forward_transfer = []
-        self.backward_transfer = []
-    
-    def compute_forgetting(self):
-        pass
+        self.subtask_success = []
+        self.subtask_reward = []
+        self.success = []
+        self.reward = []
 
-    def compute_forward_transfer(self):
-        pass
-
-    def compute_backward_transfer(self):
-        pass
     
-    def draw_matrix_plot(self):
-        '''
-        draw forgetting/forward/backward
-        '''
-        pass
+    def add(self, reward, success_rate):
+        # add data of single subtask
+        self.subtask_reward.append(reward)
+        self.subtask_success.append(success_rate)
 
-    def save(self, last:bool=True, periodic:bool=False):
-        np.save(self.save_dir+'avg_success.npy', np.array(self.average_success))
-        np.save(self.save_dir+'forgetting.npy', np.array(self.forgetting))
-        np.save(self.save_dir+'forward_transfer.npy', np.array(self.forward_transfer))
-        np.save(self.save_dir+'backward_transfer.npy', np.array(self.backward_transfer))
-    
+    def update(self):
+        # update total metrics
+        # reset subtask metrics
+        self.success.append(self.subtask_success)
+        self.reward.append(self.subtask_reward)
+        self.subtask_success = []
+        self.subtask_reward = []
+
+
+    def save_metrics(self):
+        metrics = dict(
+            success = self.success,
+            reward = self.reward
+        )
+        np.save(self.save_dir+'/metrics.npy', metrics)
+

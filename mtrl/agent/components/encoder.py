@@ -125,7 +125,7 @@ class VAE_Encoder(Encoder):
         if self.should_reconstruct:
             self.decoder = self.build_mlp(input_dim=latent_dim,
                                           hidden_dim=hidden_dim,
-                                          output_dim=self.input_dim,
+                                          output_dim=768, # hard code dim, we reconstruct embedding
                                           num_layers=num_layers+1,
                                           output_activation=False)
 
@@ -163,7 +163,7 @@ class VAE_Encoder(Encoder):
     def forward(self, mtobs: MTObs, detach: bool = False):
         
         if self.input_mode in ['context_obs']:
-            env_obs = torch.cat([mtobs.env_obs, mtobs.task_info.encoding])
+            env_obs = torch.cat([mtobs.env_obs, mtobs.task_info.encoding], dim=-1)
         elif self.input_mode in ['context']:
             env_obs = mtobs.task_info.encoding
         else:
@@ -200,7 +200,7 @@ class Alpha_net(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, output_dim)
+            nn.Linear(hidden_dim, 1)
         )
     
     def forward(self, latent_encoding):

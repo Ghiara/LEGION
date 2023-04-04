@@ -714,7 +714,11 @@ class Agent(AbstractAgent):
             )
             logger.log("train/alpha_loss", alpha_loss.mean(), step)
         # breakpoint()
-        # logger.log("train/alpha_value", self.get_alpha(batch.task_obs), step)
+        # logger.log("train/alpha_value", self.get_alpha(batch.task_obs, encoding), step)
+        ########################################################
+        if not self.multitask_cfg.should_use_disentangled_alpha:
+            kwargs_to_compute_gradient["retain_graph"] = True
+        ########################################################
         self._compute_gradient(
             loss=alpha_loss,
             parameters=self.get_parameters(name="log_alpha"),
@@ -755,7 +759,7 @@ class Agent(AbstractAgent):
             )
         return task_info
 
-    # TODO modifiy this to fit it to VAE + DPMM
+    # out of date
     def update_task_encoder(
         self,
         batch: ReplayBufferSample,
@@ -775,49 +779,6 @@ class Agent(AbstractAgent):
 
         """
         self.task_encoder_optimizer.step()
-
-    # 2023/04/02 function out of date
-    def update_encoder_critic_without_reconst(self, 
-        batch:ReplayBufferSample,
-        task_info: TaskInfo,
-        logger: Logger,
-        step: int,
-        kwargs_to_compute_gradient: Optional[Dict[str, Any]] = None,
-        *args,
-        **kwargs,):
-        
-        self.encoder_optimizer.zero_grad()
-        ##############################################################
-        # update VAE using information bottleneck via DPMixture Model
-        if self.encoder_cfg.type=='vae':
-            # self.encoder_optimizer.zero_grad()
-            mtobs = MTObs(env_obs=batch.env_obs, task_obs=batch.task_obs, task_info=task_info)
-            
-            latent_variable, latent_mu, latent_log_var, _ =self.encode(mtobs=mtobs)
-            kld_loss = self.kl_divergence(latent_obs=latent_variable, mu_q=latent_mu, log_var_q=latent_log_var)
-            
-            # update cluster loss
-            kld_loss = self.beta_kl_z * kld_loss
-            kld_loss.backward(retain_graph=True)
-        ##############################################################
-        
-        # update critic
-        self.update_critic(
-            batch=batch,
-            task_info=task_info,
-            logger=logger,
-            step=step,
-            kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
-        )
-        ##############################################################
-        # KL_div objective for logging
-        if self.encoder_cfg.type=='vae':
-            kl_div_to_log = kld_loss
-            logger.log("train/kl_div", kl_div_to_log, step)
-            # entangled update VAE using critic loss
-            self.encoder_optimizer.step()
-        ##############################################################
-        return latent_variable
 
     def update_vae(self,
         batch:ReplayBufferSample,
@@ -908,22 +869,6 @@ class Agent(AbstractAgent):
             env_index=batch.task_obs,
         )
         
-        # update VAE & critic
-        # if (self.encoder_cfg.type in ['vae'] and 
-        #     self.encoder_cfg.should_reconstruct):
-        #     # disentanglement update
-        #     latent_variable = self.update_encoder_critic_with_reconst(
-        #         batch, task_info, 
-        #         logger, step, 
-        #         kwargs_to_compute_gradient
-        #         )
-        # else:
-        #     # entanglement update
-        #     latent_variable = self.update_encoder_critic_without_reconst(
-        #         batch, task_info, 
-        #         logger, step, 
-        #         kwargs_to_compute_gradient
-        #         )
         if self.encoder_cfg.type in ['vae']:
             latent_variable = self.update_vae(
                 batch, task_info, 
@@ -963,39 +908,43 @@ class Agent(AbstractAgent):
                 self.critic.Q2, self.critic_target.Q2, self.critic_tau
             )
 
-        # update metadata context encoder
-        # if self.should_use_task_encoder:
-        #     task_info = self.get_task_info(
-        #         task_encoding=task_encoding,
-        #         component_name="task_encoder",
-        #         env_index=batch.task_obs,
-        #     )
-        #     self.update_task_encoder(
-        #         batch=batch,
-        #         task_info=task_info,
-        #         logger=logger,
-        #         step=step,
-        #         kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
-        #     )
         ############################################################################
         # update DPMM model at certain interval
         if self.should_use_dpmm:
-            if step == self.dpmm_update_start_step or step % self.dpmm_update_freq == 0:
-                print('fit bnp_model at step: {}'.format(step))
+            if kwargs['local_step'] is not None:
+                local_step = kwargs['local_step']
+            else:
+                local_step = step
+            if ((local_step+1) == self.dpmm_update_start_step or 
+                (local_step+1) % self.dpmm_update_freq == 0
+                ):
+                print('fit bnp_model at step: {}'.format(step+1))
                 # using latent encoding as training objective
                 self.bnp_model.fit(latent_variable)
                 self.bnp_model.plot_clusters(latent_variable, suffix=str(step))
                 logger.log('train/K_comps', self.bnp_model.model.obsModel.K, step)
                 # save a sample of latent variable during training
                 if kwargs['task_name_to_idx'] is not None:
+                    if kwargs['subtask'] is not None:
+                        prefix = 'step{}_subtask{}'.format(step+1, kwargs["subtask"])
+                    else:
+                        prefix = 'step{}'.format(step+1)
+                    
                     self.evaluate_latent_clustering(replay_buffer=replay_buffer, 
-                                                    task_name_to_idx_map=kwargs['task_name_to_idx'],
-                                                    num_save=1,
-                                                    prefix='step{}'.format(step))
+                                                task_name_to_idx_map=kwargs['task_name_to_idx'],
+                                                num_save=1,
+                                                prefix=prefix)
+
         ############################################################################
         return batch.buffer_index
 
-    def evaluate_latent_clustering(self, replay_buffer: ReplayBuffer, task_name_to_idx_map:dict, num_save:int=1, prefix:str=""):
+    def evaluate_latent_clustering(self, 
+                                   replay_buffer: ReplayBuffer, 
+                                   task_name_to_idx_map:dict, 
+                                   num_save:int=1, 
+                                   prefix:str="", 
+                                   save_info_dict:bool=False
+                                   ):
         '''
         sample a batch of obs, get latent encoding & evaluate the clustering performance, save the
         necessary data to *csv file
@@ -1027,14 +976,16 @@ class Agent(AbstractAgent):
             # get encoding
             z, _, _, _ = self.encode(mtobs=mtobs)
             
-            if self.bnp_model is not None:
+            if self.bnp_model is not None and self.bnp_model.model is not None:
                 self.bnp_model.manage_latent_representation(z=z, 
                                                             env_idx=batch.task_obs, 
                                                             env_name_list=env_name_list, 
-                                                            prefix=prefix+'_'+str(i+1))
+                                                            prefix=prefix+'_'+str(i+1),
+                                                            save_info_dict=save_info_dict,
+                                                            )
             else:
                 data = dict(
-                    z=z.detach().cpu().numpy(),
+                    z = z.detach().cpu().numpy(),
                     env_name = env_name_list,
                     env_idx = batch.task_obs.detach().cpu().numpy()
                 )

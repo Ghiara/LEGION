@@ -19,8 +19,6 @@ class ReplayBufferSample:
         "next_env_obs",
         "not_done",
         "task_obs",
-        # "true_label",
-        # "one_hot",
         "buffer_index",
     ]
     env_obs: TensorType
@@ -29,9 +27,6 @@ class ReplayBufferSample:
     next_env_obs: TensorType
     not_done: TensorType
     task_obs: TensorType
-    # Add true label to indicate which env it comes from
-    # true_label: TensorType
-    # one_hot: TensorType
     buffer_index: TensorType
 
 
@@ -66,16 +61,13 @@ class ReplayBuffer(object):
         self.last_save = 0
         self.full = False
 
-    def reset_buffer(self):
+    def reset(self):
         self.env_obses = np.empty((self.capacity, *self.env_obs_shape), dtype=self.env_obs_dtype)
         self.next_env_obses = np.empty((self.capacity, *self.env_obs_shape), dtype=self.env_obs_dtype)
         self.actions = np.empty((self.capacity, *self.action_shape), dtype=np.float32)
         self.rewards = np.empty((self.capacity, 1), dtype=np.float32)
         self.not_dones = np.empty((self.capacity, 1), dtype=np.float32)
         self.task_obs = np.empty((self.capacity, *self.task_obs_shape), dtype=self.task_obs_dtype)
-        # add true labels
-        # self.true_labels = np.empty((self.capacity, 1), dtype=np.float32)
-        # self.one_hot = np.empty((self.capacity, *(10,)), dtype=np.int64)
 
         self.idx = 0
         self.last_save = 0
@@ -96,9 +88,6 @@ class ReplayBuffer(object):
         np.copyto(self.next_env_obses[self.idx], next_env_obs)
         np.copyto(self.not_dones[self.idx], not done)
         np.copyto(self.task_obs[self.idx], task_obs)
-        # add true labels
-        # np.copyto(self.true_labels[self.idx], true_label)
-        # np.copyto(self.one_hot[self.idx], one_hot)
 
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
@@ -318,5 +307,5 @@ class ReplayBuffer(object):
         self.last_save = self.idx
         # self.delete_from_filesystem(dir_to_delete_from=save_dir)
 
-    def reset(self):
-        self.idx = 0
+    # def reset(self):
+    #     self.idx = 0

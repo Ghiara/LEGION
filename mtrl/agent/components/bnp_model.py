@@ -167,7 +167,7 @@ class BNPModel:
     #################################################
     ############## For VAE evaluation ###############
     #################################################
-    def manage_latent_representation(self, z, env_idx, env_name_list:list, prefix:str=''):
+    def manage_latent_representation(self, z, env_idx, env_name_list:list, prefix:str='', save_info_dict:bool=False):
         '''
         calculate the latent z and their corresponding clusters, save the values for later evaluation
         saved value:
@@ -199,24 +199,57 @@ class BNPModel:
         )
         # save the file
         np.savez(self.save_dir+'/data'+'/latent_samples_{}.npz'.format(prefix), **data)
+        if save_info_dict and self.info_dict is not None:
+            self.save_info_dict()
 
 
     def load_model(self, abs_path, model_type:str='Best'):
-        if os.path.exists(abs_path):
+        if os.path.exists(abs_path) and os.path.exists(abs_path+'/data/info_dict.npy'):
+
+            self.info_dict = np.load(abs_path+'/data/info_dict.npy', allow_pickle=True)
+            z_files = os.listdir(abs_path+'/data/')
+            z_files = [x for x in z_files if x.startswith('latent_samples')]
+            if z_files == []:
+                print('no latent samples exists at {}'.format(abs_path+'/data/'))
+                return
+
+            z_files_split =  [x.split('_')[2] for x in z_files]
+            max_index = -1
+            max_value = -1
+            for i, element in enumerate(z_files_split):
+                if element.startswith('step'):
+                    _, number = element.split('step')
+                    number = int(number)
+                    if number > max_value:
+                        max_index = i
+                        max_value = number
+            z_file_name = z_files[max_index]
+            z = np.load(abs_path+'/data/'+z_file_name)['z']
+            z = XData(z)
+            self.model, self.info_dict = bnpy.run(z, 'DPMixtureModel', 'DiagGauss', 'memoVB',
+                                                  output_path=os.path.join(self.save_dir,
+                                                                           str(next(self.iterator))),
+                                                  initname=self.info_dict['task_output_path'],
+                                                  K=self.info_dict['K_history'][-1], gamma0=self.gamma0,
+                                                  sF=self.sF, ECovMat='eye',
+                                                  moves='birth,merge', nBatch=5, nLap=self.num_lap,
+                                                  **dict(
+                                                      sum(map(list, [self.birth_kwargs.items(),
+                                                                     self.merge_kwargs.items()]), []))
+                                                  )
+            self.calc_cluster_component_params()
             print('load {} bnp_model from {}'.format(model_type, abs_path))
         else:
-            Warning('path not exists, failed to load, using initialized model')
-        self.model = bnpy.ioutil.ModelReader.load_model_at_prefix(abs_path, prefix=model_type)
+            print(f'invalid bnp_modle load path {abs_path}')
+
     
-    def load_info_dict(self):
-        '''
-        load info dict from *.npy file
-        '''
-        path = self.save_dir+'/data'+'/info_dict.npy'
-        self.info_dict = np.load(path, allow_pickle=True)
     
     def save_info_dict(self):
-        np.save(self.save_dir+'/data'+'/info_dict.npy', self.info_dict)
+        info = dict(
+            task_output_path = self.info_dict['task_output_path'],
+            K_history=[self.info_dict['K_history'][-1]],
+        )
+        np.save(self.save_dir+'/data'+'/info_dict.npy', info)
 
     def save_comps_parameters(self):
         '''
