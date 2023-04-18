@@ -81,7 +81,7 @@ class Agent(AbstractAgent):
         self.encoder_optimizer_cfg = encoder_optimizer_cfg
         self.actor_optimizer_cfg = actor_optimizer_cfg
         self.critic_optimizer_cfg = critic_optimizer_cfg
-        self.log_alpha_optimizer_cfg = alpha_optimizer_cfg
+        self.alpha_optimizer_cfg = alpha_optimizer_cfg
 
         # use context metadata
         self.should_use_task_encoder = multitask_cfg.should_use_task_encoder
@@ -262,9 +262,9 @@ class Agent(AbstractAgent):
         '''
         reset optimizer, used in CRL
         '''
-        self.encoder_optimizer = hydra.utils.instantiate(
-                self.encoder_optimizer_cfg, params=self.get_parameters(name="encoder")
-            )
+        # self.encoder_optimizer = hydra.utils.instantiate(
+        #         self.encoder_optimizer_cfg, params=self.get_parameters(name="encoder")
+        #     )
         self.actor_optimizer = hydra.utils.instantiate(
             self.actor_optimizer_cfg, params=self.get_parameters(name="actor")
         )
