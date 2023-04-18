@@ -39,15 +39,15 @@ class Experiment(experiment.Experiment):
             os.path.join(self.config.setup.save_dir, "crl_metrics")
             )
             self.crl_metrics = CRL_Metrics(save_dir=self.crl_metrics_dir)
-            if self.config.experiment.should_use_rehearsal:
-                self.rehearsal_buffer = ReplayBuffer(
-                    device=self.device,
-                    env_obs_shape=self.env_obs_space.shape,
-                    task_obs_shape=(1,),
-                    action_shape=self.action_space.shape,
-                    capacity = 1000000,
-                    batch_size = 128,
-                )
+            # if self.config.experiment.should_use_rehearsal:
+            #     self.rehearsal_buffer = ReplayBuffer(
+            #         device=self.device,
+            #         env_obs_shape=self.env_obs_space.shape,
+            #         task_obs_shape=(1,),
+            #         action_shape=self.action_space.shape,
+            #         capacity = 1000000,
+            #         batch_size = 128,
+            #     )
         
     
 
@@ -464,7 +464,7 @@ class Experiment(experiment.Experiment):
 
         exp_config = self.config.experiment
         assert exp_config.training_mode in ['crl_queue', 'crl_expand'], \
-            'uncorrect training_mode for crl training.'
+            'incorrect training_mode for crl training.'
         # crl_env = CRL_Env instance
         crl_env = self.envs["train"]
         
@@ -475,65 +475,93 @@ class Experiment(experiment.Experiment):
         global_episode = 0
 
         for subtask in range(self.config.env.num_envs):
-            
+            test_count = 0
+            # set up each subtask
             crl_obs = crl_env.reset(subtask)
             env_indices = crl_obs["task_obs"]
+            # change action space if needed
             if exp_config.training_mode in ['crl_queue']:
                 self.action_space = crl_env.env_list[subtask].action_space
+            # reset replay buffer
             if exp_config.should_reset_replay_buffer:
                 self.replay_buffer.reset()
-            # init setup of each subtask phase
+            # reset optimizer
+            if exp_config.should_reset_optimizer:
+                is_optim_reset = self.agent.reset_optimizer()
+            else:
+                is_optim_reset = False
+            # reset critics & target critics
+            if exp_config.should_reset_critics:
+                is_critics_reset = self.agent.reset_critics()
+            else:
+                is_critics_reset = False
+            # setup rehearsal
+            if self.config.replay_buffer.rehearsal.should_use:
+                if subtask > 0:
+                    # only up to second phase we activate the rehearsal strategy
+                    self.replay_buffer.rehearsal_activate = True
+            # reset metrics
             success, episode_reward, episode_step, done = [
                 np.full(shape=crl_env.current_env_num, fill_value=fill_value)
                 for fill_value in [0.0, 0.0, 0, True]
             ]
             info = {}
             episode = 0
-            print('start training sub task(s): {}'.format(crl_env.current_env_name))
+            print(f'start training sub task(s): {crl_env.current_env_name}, with env indices: {env_indices}')
             self.logger.log_text('train/subtask_name', crl_env.current_env_name, subtask)
-            print('is replay buffer empty: ',self.replay_buffer.is_empty())
-            
+            print('reset replay buffer: ',self.replay_buffer.is_empty())
+            print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
+            print(f'reset optimizer: {is_optim_reset}')
+            print(f'reset SAC critics: {is_critics_reset}')
             start_time = time.time()
             # start subtask training
             for step in range(exp_config.num_train_steps):
                 
-                # log after every episode
-                if step % self.max_episode_steps == 0:  # Perform logging & Evaluation after every episode
+                # Perform logging & Evaluation after every episode  
+                if step % self.max_episode_steps == 0:
                     if step > 0:
                         
+                        # log avg total success rate
                         success = (success > 0).astype("float")
-                        for index, env_index in enumerate(env_indices): # TODO: modify
+                        self.logger.log("train/success", success.mean(), global_step)
+                        # log individual success rate & reward & index
+                        for index, env_index in enumerate(env_indices):
                             self.logger.log(
                                 f"train/success_env_index_{int(env_index.detach().cpu().numpy())}",
                                 success[index],
                                 global_step,
-                            )
-                        self.logger.log("train/success", success.mean(), global_step)
-                        
-                        for index, env_index in enumerate(env_indices):
+                                )
                             self.logger.log(
                                 f"train/episode_reward_env_index_{int(env_index.detach().cpu().numpy())}",
                                 episode_reward[index],
                                 global_step,
-                            )
-                            self.logger.log(f"train/env_index_{int(env_index.detach().cpu().numpy())}", 
-                                            index, global_step, tb_log=False)
-
-                        self.logger.log("train/duration", time.time() - start_time, global_step, tb_log=False)
+                                )
+                            self.logger.log(
+                                f"train/env_index_{int(env_index.detach().cpu().numpy())}", 
+                                index, 
+                                global_step, 
+                                tb_log=False
+                                )       
+                        # log time cost
+                        self.logger.log(
+                            "train/duration", 
+                            time.time() - start_time, 
+                            global_step, 
+                            tb_log=False)
+                        
                         start_time = time.time()
                         self.logger.dump(global_step) # dump to file & console
                     episode += 1
                     global_episode += 1
-                    # reset logged value
-                    episode_reward = np.full(shape=crl_env.current_env_num, fill_value=0.0)
-                    if "success" in self.metrics_to_track:
-                        success = np.full(shape=crl_env.current_env_num, fill_value=0.0)
-
-                    self.logger.log("train/episode", global_episode, global_step, tb_log=False)
                     
+                    self.logger.log("train/episode", global_episode, global_step, tb_log=False)
+                    # reset log metrics
+                    episode_reward = np.full(shape=crl_env.current_env_num, fill_value=0.0)
+                    success = np.full(shape=crl_env.current_env_num, fill_value=0.0)
 
-                # interactive with the envs
-                if step < exp_config.init_steps and exp_config.should_reset_replay_buffer:
+
+                # interactive with the envs TODO: Check validity
+                if step < exp_config.init_steps:
                     # warmup steps
                     action = np.asarray(
                         [self.action_space.sample() for _ in range(crl_env.current_env_num)]
@@ -553,12 +581,14 @@ class Experiment(experiment.Experiment):
                         exp_config.init_steps if step == exp_config.init_steps else 1
                     )
                     for _ in range(num_updates):
-                        self.agent.update(self.replay_buffer, self.logger, global_step, #step, 
-                                        task_name_to_idx=self.task_name_to_idx,
-                                        subtask=subtask,
-                                        local_step=step,
-                                        rehearsal_buffer = self.rehearsal_buffer if exp_config.should_use_rehearsal else None,
-                                        ) # used for evaluation
+                        self.agent.update(self.replay_buffer, 
+                                          self.logger, 
+                                          global_step, #step, 
+                                          global_step = global_step,
+                                          local_step = step,
+                                          task_name_to_idx = self.task_name_to_idx,
+                                          subtask = subtask,
+                                          ) # used for evaluation
                 
                 # Interaction with envs
                 next_crl_obs, reward, done, info = crl_env.step(action)
@@ -590,11 +620,13 @@ class Experiment(experiment.Experiment):
                             task_obs=env_index,
                         )
                     # save transitions for rehearsal
-                    if (exp_config.should_use_rehearsal and 
-                        step >= exp_config.num_train_steps - 10*self.max_episode_steps
+                    if (self.config.replay_buffer.rehearsal.should_use and 
+                        # we collect last 100 episodes of each subtask as rehearsal experience
+                        step >= (exp_config.num_train_steps - 
+                        self.config.replay_buffer.rehearsal.last_eps_num*self.max_episode_steps)
                         ):
                         # each phase we collect last 10 episodes
-                        self.rehearsal_buffer.add(
+                        self.replay_buffer.add_to_rehearsal(
                             crl_obs["env_obs"][index],
                             action[index],
                             reward[index],
@@ -616,7 +648,8 @@ class Experiment(experiment.Experiment):
                 self.agent.save(
                     self.model_dir,
                     step=subtask,
-                    retain_last_n=exp_config.save.model.retain_last_n,
+                    # retain_last_n=exp_config.save.model.retain_last_n,
+                    retain_last_n=-1,
                 )
             if exp_config.save.buffer.should_save:
                 self.replay_buffer.save(
@@ -648,6 +681,8 @@ class Experiment(experiment.Experiment):
         
         self.replay_buffer.delete_from_filesystem(self.buffer_dir)
         self.close_envs()
+        self.crl_metrics.to_csv()
+        self.logger.tb_writer.close()
         print('Training finished')
 
 
@@ -744,6 +779,7 @@ class Experiment(experiment.Experiment):
         reset & collect some transitions for final evaluation of latent representation learning
         under multitask setting (only used in CRL)
         '''
+        print('collect multitask transitions for latent representation learning evaluation.')
         self.replay_buffer.reset()
         vec_env = self.envs['eval']
         agent = self.agent
@@ -778,7 +814,7 @@ class Experiment(experiment.Experiment):
                                         task_obs=env_index,
                                     )
                 multitask_obs = next_multitask_obs
+        print('transitions collection finished.')
 
-                # episode_step += 1
 
         

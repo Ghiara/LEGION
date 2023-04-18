@@ -39,13 +39,6 @@ Together, these two components enable use of MTRL across different environments 
 * [Multi-Task Reinforcement Learning with Context-based Representations](https://arxiv.org/abs/2102.06177)
     *  We use the `af8417bfc82a3e249b4b02156518d775f29eb289` commit for the MetaWorld environments for our experiments.
 
-### License
-
-* MTRL uses [MIT License](https://github.com/facebookresearch/mtrl/blob/main/LICENSE).
-
-* [Terms of Use](https://opensource.facebook.com/legal/terms)
-
-* [Privacy Policy](https://opensource.facebook.com/legal/privacy)
 
 ### Citing MTRL
 
@@ -78,23 +71,6 @@ If you use MTRL in your research, please use the following BibTeX entry:
 
 [https://mtrl.readthedocs.io](https://mtrl.readthedocs.io)
 
-## Contributing to MTRL
-
-There are several ways to contribute to MTRL.
-
-1. Use MTRL in your research.
-
-2. Contribute a new algorithm. We currently support [8 multi-task RL algorithms](https://mtrl.readthedocs.io/en/latest/pages/algorithms/supported.html) and are looking forward to adding more environments.
-
-3. Check out the [good-first-issues](https://github.com/facebookresearch/mtrl/pulls?q=is%3Apr+is%3Aopen+label%3A%22good+first+issue%22) on GitHub and contribute to fixing those issues.
-
-4. Check out additional details [here](https://github.com/facebookresearch/mtrl/blob/main/.github/CONTRIBUTING.md).
-
-## Community
-
-Ask questions in the chat or github issues:
-* [Chat](https://mtenv.zulipchat.com)
-* [Issues](https://github.com/facebookresearch/mtrl/issues)
 
 ## Acknowledgements
 

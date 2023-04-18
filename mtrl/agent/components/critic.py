@@ -475,7 +475,7 @@ class DPMM_Critic(base_component.Component):
             encoder_cfg (ConfigType): config for the encoder.
             multitask_cfg (ConfigType): config for encoding the multitask knowledge.
         
-        PMM_Critic(
+        DPMM_Critic(
             (Q1): QFunction(
                 (model): Sequential(
                 (0): Linear(in_features=???, out_features=400, bias=True)

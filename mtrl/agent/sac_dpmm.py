@@ -75,7 +75,14 @@ class Agent(AbstractAgent):
             device=device,
         )
 
-        
+        self.critic_cfg = critic_cfg
+        self.env_obs_shape = env_obs_shape
+        self.action_shape = action_shape
+        self.encoder_optimizer_cfg = encoder_optimizer_cfg
+        self.actor_optimizer_cfg = actor_optimizer_cfg
+        self.critic_optimizer_cfg = critic_optimizer_cfg
+        self.log_alpha_optimizer_cfg = alpha_optimizer_cfg
+
         # use context metadata
         self.should_use_task_encoder = multitask_cfg.should_use_task_encoder
         self.should_use_dpmm = multitask_cfg.should_use_dpmm
@@ -231,6 +238,50 @@ class Agent(AbstractAgent):
         # tie encoders between actor and critic
         # self.actor.encoder.copy_conv_weights_from(self.critic.encoder)
         self.train()
+    
+    def reset_critics(self):
+        '''
+        reset critics weights, used in CRL
+        '''
+        # SAC Critic
+        self.critic = hydra.utils.instantiate(
+            self.critic_cfg, env_obs_shape=self.env_obs_shape, action_shape=self.action_shape
+        ).to(self.device)
+        # SAC Target Critic
+        self.critic_target = hydra.utils.instantiate(
+            self.critic_cfg, env_obs_shape=self.env_obs_shape, action_shape=self.action_shape
+        ).to(self.device)
+        self.critic_target.load_state_dict(self.critic.state_dict())
+        self._components['critic'] = self.critic
+        self._components['critic_target'] = self.critic_target
+        self.critic.train(True)
+        self.critic_target.train(True)
+        return True
+    
+    def reset_optimizer(self):
+        '''
+        reset optimizer, used in CRL
+        '''
+        self.encoder_optimizer = hydra.utils.instantiate(
+                self.encoder_optimizer_cfg, params=self.get_parameters(name="encoder")
+            )
+        self.actor_optimizer = hydra.utils.instantiate(
+            self.actor_optimizer_cfg, params=self.get_parameters(name="actor")
+        )
+        self.critic_optimizer = hydra.utils.instantiate(
+            self.critic_optimizer_cfg, params=self.get_parameters(name="critic")
+        )
+        self.log_alpha_optimizer = hydra.utils.instantiate(
+            self.alpha_optimizer_cfg, params=self.get_parameters(name="log_alpha")
+        )
+        self._optimizers = {
+                "encoder": self.encoder_optimizer,
+                "actor": self.actor_optimizer,
+                "critic": self.critic_optimizer,
+                "log_alpha": self.log_alpha_optimizer,
+            }
+        return True
+
 
     def train(self, training: bool = True) -> None:
         self.training = training
@@ -583,6 +634,7 @@ class Agent(AbstractAgent):
         logger: Logger,
         step: int,
         kwargs_to_compute_gradient: Dict[str, Any],
+        **kwargs
     ) -> None:
         """Update the critic component.
 
@@ -600,13 +652,14 @@ class Agent(AbstractAgent):
         loss_to_log = critic_loss
         if self.loss_reduction == "none":
             loss_to_log = loss_to_log.mean()
-        logger.log("train/critic_loss", loss_to_log, step)
 
-        if loss_to_log > 1e8:
-            warnings.warn("critic_loss = {} is too high. Stopping training.".format(loss_to_log))
-            # raise RuntimeError(
-            #     f"critic_loss = {loss_to_log} is too high. Stopping training."
-            # )
+        logger.log("train/critic_loss", loss_to_log, step, tb_log=kwargs['tb_log'])
+
+        # if loss_to_log > 1e8:
+        #     warnings.warn("critic_loss = {} is too high. Stopping training.".format(loss_to_log))
+        #     # raise RuntimeError(
+        #     #     f"critic_loss = {loss_to_log} is too high. Stopping training."
+        #     # )
         
         component_names = ["critic"]
         parameters: List[ParameterType] = []
@@ -636,6 +689,7 @@ class Agent(AbstractAgent):
         logger: Logger,
         step: int,
         kwargs_to_compute_gradient: Dict[str, Any],
+        **kwargs
     ) -> None:
         """Update the actor and alpha component.
 
@@ -667,11 +721,11 @@ class Agent(AbstractAgent):
             actor_loss = (
                 self.get_alpha(batch.task_obs, encoding).detach() * log_pi - actor_Q
             ).mean()
-            logger.log("train/actor_loss", actor_loss, step)
+            logger.log("train/actor_loss", actor_loss, step, tb_log=kwargs['tb_log'])
 
         elif self.loss_reduction == "none":
             actor_loss = self.get_alpha(batch.task_obs, encoding).detach() * log_pi - actor_Q
-            logger.log("train/actor_loss", actor_loss.mean(), step)
+            logger.log("train/actor_loss", actor_loss.mean(), step, tb_log=kwargs['tb_log'])
 
         # logger.log("train/actor_target_entropy", self.target_entropy, step)
         # entropy = 0.5 * log_std.shape[1] * (1.0 + np.log(2 * np.pi)) + log_std.sum(
@@ -706,13 +760,13 @@ class Agent(AbstractAgent):
                 self.get_alpha(batch.task_obs, encoding)
                 * (-log_pi - self.target_entropy).detach()
             ).mean()
-            logger.log("train/alpha_loss", alpha_loss, step)
+            logger.log("train/alpha_loss", alpha_loss, step, tb_log=kwargs['tb_log'])
         elif self.loss_reduction == "none":
             alpha_loss = (
                 self.get_alpha(batch.task_obs, encoding)
                 * (-log_pi - self.target_entropy).detach()
             )
-            logger.log("train/alpha_loss", alpha_loss.mean(), step)
+            logger.log("train/alpha_loss", alpha_loss.mean(), step, tb_log=kwargs["tb_log"])
         # breakpoint()
         # logger.log("train/alpha_value", self.get_alpha(batch.task_obs, encoding), step)
         ########################################################
@@ -809,7 +863,7 @@ class Agent(AbstractAgent):
             self.encoder_optimizer.step()
             # ELBO objective (only for logging)
             vae_loss_to_log = vae_loss
-            logger.log("train/vae_loss", vae_loss_to_log, step)
+            logger.log("train/vae_loss", vae_loss_to_log, step, tb_log=kwargs['tb_log'])
 
         return latent_variable
 
@@ -818,7 +872,7 @@ class Agent(AbstractAgent):
         self,
         replay_buffer: ReplayBuffer,
         logger: Logger,
-        step: int,
+        step: int, # global step
         kwargs_to_compute_gradient: Optional[Dict[str, Any]] = None,
         buffer_index_to_sample: Optional[np.ndarray] = None,
         *args,
@@ -842,6 +896,12 @@ class Agent(AbstractAgent):
                 buffer_index_to_sample is not set to None, return buffer_index_to_sample.
 
         """
+        # get global step & local step
+        try:
+            global_step = kwargs['global_step']
+            local_step = kwargs['local_step']
+        except:
+            global_step=local_step=step
 
         if kwargs_to_compute_gradient is None:
             kwargs_to_compute_gradient = {}
@@ -872,8 +932,10 @@ class Agent(AbstractAgent):
         if self.encoder_cfg.type in ['vae']:
             latent_variable = self.update_vae(
                 batch, task_info, 
-                logger, step, 
-                kwargs_to_compute_gradient
+                logger, 
+                step=global_step, 
+                kwargs_to_compute_gradient=kwargs_to_compute_gradient,
+                tb_log=True if local_step != 1500 else False
                 )
 
         # update critic
@@ -881,8 +943,9 @@ class Agent(AbstractAgent):
             batch=batch,
             task_info=task_info,
             logger=logger,
-            step=step,
+            step=global_step,
             kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
+            tb_log=True if local_step != 1500 else False
         )
 
         # update actor & alpha
@@ -896,11 +959,12 @@ class Agent(AbstractAgent):
                 batch=batch,
                 task_info=task_info,
                 logger=logger,
-                step=step,
+                step=global_step,
                 kwargs_to_compute_gradient=deepcopy(kwargs_to_compute_gradient),
+                tb_log=True if local_step != 1500 else False
             )
         # update target critic (soft update)
-        if step % self.critic_target_update_freq == 0:
+        if local_step % self.critic_target_update_freq == 0:
             agent_utils.soft_update_params(
                 self.critic.Q1, self.critic_target.Q1, self.critic_tau
             )
@@ -911,24 +975,20 @@ class Agent(AbstractAgent):
         ############################################################################
         # update DPMM model at certain interval
         if self.should_use_dpmm:
-            if kwargs['local_step'] is not None:
-                local_step = kwargs['local_step']
-            else:
-                local_step = step
             if ((local_step+1) == self.dpmm_update_start_step or 
                 (local_step+1) % self.dpmm_update_freq == 0
                 ):
-                print('fit bnp_model at step: {}'.format(step+1))
+                print('fit bnp_model at step: {}'.format(global_step+1))
                 # using latent encoding as training objective
                 self.bnp_model.fit(latent_variable)
-                self.bnp_model.plot_clusters(latent_variable, suffix=str(step))
-                logger.log('train/K_comps', self.bnp_model.model.obsModel.K, step)
+                self.bnp_model.plot_clusters(latent_variable, suffix=str(global_step))
+                logger.log('train/K_comps', self.bnp_model.model.obsModel.K, global_step)
                 # save a sample of latent variable during training
                 if kwargs['task_name_to_idx'] is not None:
                     if kwargs['subtask'] is not None:
-                        prefix = 'step{}_subtask{}'.format(step+1, kwargs["subtask"])
+                        prefix = 'step{}_subtask{}'.format(global_step+1, kwargs["subtask"])
                     else:
-                        prefix = 'step{}'.format(step+1)
+                        prefix = 'step{}'.format(global_step+1)
                     
                     self.evaluate_latent_clustering(replay_buffer=replay_buffer, 
                                                 task_name_to_idx_map=kwargs['task_name_to_idx'],

@@ -68,7 +68,7 @@ def _squash(
     return mu, pi, log_pi
 
 
-class BaseActor(base_component.Component):
+class BaseActor(base_component.Component): # component -> nn.Module
     def __init__(
         self,
         env_obs_shape: List[int],

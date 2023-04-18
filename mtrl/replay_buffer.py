@@ -34,7 +34,8 @@ class ReplayBuffer(object):
     """Buffer to store environment transitions."""
 
     def __init__(
-        self, env_obs_shape, task_obs_shape, action_shape, capacity, batch_size, device
+        self, env_obs_shape, task_obs_shape, action_shape, capacity, batch_size, device,
+        rehearsal # dict param used in CRL 
     ):
         self.env_obs_shape = env_obs_shape
         self.task_obs_shape = task_obs_shape
@@ -42,6 +43,7 @@ class ReplayBuffer(object):
         self.capacity = capacity
         self.batch_size = batch_size
         self.device = device
+        self.rehearsal = rehearsal
 
         # the proprioceptive env_obs is stored as float32, pixels env_obs as uint8
         self.env_obs_dtype = np.float32 if len(env_obs_shape) == 1 else np.uint8
@@ -53,13 +55,28 @@ class ReplayBuffer(object):
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
         self.task_obs = np.empty((capacity, *task_obs_shape), dtype=self.task_obs_dtype)
-        # TODO add true labels
-        # self.true_labels = np.empty((capacity, 1), dtype=np.float32)
-        # self.one_hot = np.empty((capacity, *(10,)), dtype=np.int64)
-        
         self.idx = 0
         self.last_save = 0
         self.full = False
+        ##################################################################################
+        # TODO add Rehearsal functionality
+        if self.rehearsal.should_use:
+            print('=========== Replay Buffer will use Rehearsal Strategy ===========')
+            self.rehearsal_env_obses = np.empty((capacity, *env_obs_shape), dtype=self.env_obs_dtype)
+            self.rehearsal_next_env_obses = np.empty((capacity, *env_obs_shape), dtype=self.env_obs_dtype)
+            self.rehearsal_actions = np.empty((capacity, *action_shape), dtype=np.float32)
+            self.rehearsal_rewards = np.empty((capacity, 1), dtype=np.float32)
+            self.rehearsal_not_dones = np.empty((capacity, 1), dtype=np.float32)
+            self.rehearsal_task_obs = np.empty((capacity, *task_obs_shape), dtype=self.task_obs_dtype)
+            self.rehearsal_idx = 0
+            self.rehearsal_last_save = 0
+            self.rehearsal_full = False
+            self.rehearsal_sample_ratio = self.rehearsal.ratio
+            assert self.rehearsal_sample_ratio <= 1.0 ,\
+                f'rehearsal ratio {self.rehearsal_sample_ratio} > 1.0'
+        ###################################################################################
+        self.rehearsal_activate=False
+
 
     def reset(self):
         self.env_obses = np.empty((self.capacity, *self.env_obs_shape), dtype=self.env_obs_dtype)
@@ -91,24 +108,75 @@ class ReplayBuffer(object):
 
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
+    
+    ##################################################################################
+    def add_to_rehearsal(self, env_obs, action, reward, next_env_obs, done, task_obs):
+        '''
+        Inputs: obs, acts, rews, dones from single environment
+        Only used when rehearsal buffer exists
+
+        '''
+        np.copyto(self.rehearsal_env_obses[self.rehearsal_idx], env_obs)
+        np.copyto(self.rehearsal_actions[self.rehearsal_idx], action)
+        np.copyto(self.rehearsal_rewards[self.rehearsal_idx], reward)
+        np.copyto(self.rehearsal_next_env_obses[self.rehearsal_idx], next_env_obs)
+        np.copyto(self.rehearsal_not_dones[self.rehearsal_idx], not done)
+        np.copyto(self.rehearsal_task_obs[self.rehearsal_idx], task_obs)
+
+        self.rehearsal_idx = (self.rehearsal_idx + 1) % self.capacity
+        self.rehearsal_full = self.rehearsal_full or self.rehearsal_idx == 0
+    #################################################################################
 
     def sample(self, index=None) -> ReplayBufferSample:
-        if index is None:
-            idxs = np.random.randint(
-                0, self.capacity if self.full else self.idx, size=self.batch_size
+        # get the sampled idxs
+        ####################################################################################
+        if self.rehearsal.should_use and self.rehearsal_activate:
+            
+            rehearsal_idxs = np.random.randint(
+                0, self.capacity if self.rehearsal_full else self.rehearsal_idx, 
+                size=int(self.batch_size * self.rehearsal_sample_ratio)
             )
-        else:
-            idxs = index
+            idxs = np.random.randint(
+                    0, self.capacity if self.full else self.idx, 
+                    size=self.batch_size - int(self.batch_size * self.rehearsal_sample_ratio)
+                )
+            prev_env_obses = torch.as_tensor(self.rehearsal_env_obses[rehearsal_idxs], device=self.device).float()
+            prev_actions = torch.as_tensor(self.rehearsal_actions[rehearsal_idxs], device=self.device)
+            prev_rewards = torch.as_tensor(self.rehearsal_rewards[rehearsal_idxs], device=self.device)
+            prev_next_env_obses = torch.as_tensor(self.rehearsal_next_env_obses[rehearsal_idxs], device=self.device).float()
+            prev_not_dones = torch.as_tensor(self.rehearsal_not_dones[rehearsal_idxs], device=self.device)
+            prev_env_indices = torch.as_tensor(self.rehearsal_task_obs[rehearsal_idxs], device=self.device)
+        
+            env_obses = torch.as_tensor(self.env_obses[idxs], device=self.device).float()
+            actions = torch.as_tensor(self.actions[idxs], device=self.device)
+            rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
+            next_env_obses = torch.as_tensor(self.next_env_obses[idxs], device=self.device).float()
+            not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
+            env_indices = torch.as_tensor(self.task_obs[idxs], device=self.device)
 
-        env_obses = torch.as_tensor(self.env_obses[idxs], device=self.device).float()
-        actions = torch.as_tensor(self.actions[idxs], device=self.device)
-        rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
-        next_env_obses = torch.as_tensor(self.next_env_obses[idxs], device=self.device).float()
-        not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
-        env_indices = torch.as_tensor(self.task_obs[idxs], device=self.device)
+            env_obses = torch.cat([env_obses, prev_env_obses], dim=0)
+            actions = torch.cat([actions, prev_actions], dim=0)
+            rewards = torch.cat([rewards, prev_rewards], dim=0)
+            next_env_obses = torch.cat([next_env_obses, prev_next_env_obses], dim=0)
+            not_dones = torch.cat([not_dones, prev_not_dones], dim=0)
+            env_indices = torch.cat([env_indices, prev_env_indices], dim=0)
+        ###############################################################################################
+        else:
+            if index is None:
+                idxs = np.random.randint(
+                    0, self.capacity if self.full else self.idx, size=self.batch_size
+                )
+            else:
+                idxs = index
+
+            env_obses = torch.as_tensor(self.env_obses[idxs], device=self.device).float()
+            actions = torch.as_tensor(self.actions[idxs], device=self.device)
+            rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
+            next_env_obses = torch.as_tensor(self.next_env_obses[idxs], device=self.device).float()
+            not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
+            env_indices = torch.as_tensor(self.task_obs[idxs], device=self.device)
         # add true labels
-        # true_labels = torch.as_tensor(self.true_labels[idxs], device=self.device)
-        # one_hot = torch.as_tensor(self.one_hot[idxs], device=self.device)
+
         return ReplayBufferSample(
             env_obses, actions, rewards, next_env_obses, not_dones, env_indices, idxs
         )
@@ -293,9 +361,6 @@ class ReplayBuffer(object):
                 self.rewards[start:end] = payload[3][:select_till_index]
                 self.not_dones[start:end] = payload[4][:select_till_index]
                 self.task_obs[start:end] = payload[5][:select_till_index]
-                # add a true label
-                # self.true_labels[start:end] = payload[6][:select_till_index]
-                # self.one_hot[start:end] = payload[6][:select_till_index]
                 
                 self.idx = end - 1
                 start = end

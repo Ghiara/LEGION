@@ -6,7 +6,7 @@ import os
 import time
 from functools import singledispatch
 from typing import Dict, List
-
+import pandas as pd
 import numpy as np
 import torch
 from termcolor import colored
@@ -273,5 +273,14 @@ class CRL_Metrics():
             success = self.success,
             reward = self.reward
         )
-        np.save(self.save_dir+'/metrics.npy', metrics)
+        np.savez(self.save_dir+'/metrics.npz', **metrics)
+    
+    def to_csv(self):
+        metrics = np.array(self.success).T # axis 0 eval success rate after every queue phase, axis 1 queue of env
+        metrics = pd.DataFrame(metrics, columns=['reach-v1','push-v1',
+                                                 'pick-place-v1','door-open-v1', 
+                                                 'drawer-open-v1','drawer-close-v1', 
+                                                 'button-press-topdpwn-v1','peg-insert-side-v1',
+                                                 'window-open-v1','window-close-v1'])
+        metrics.to_csv(self.save_dir+'/eval_success.csv')
 
