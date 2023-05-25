@@ -130,6 +130,7 @@ class ReplayBuffer(object):
     def sample(self, index=None) -> ReplayBufferSample:
         # get the sampled idxs
         ####################################################################################
+            
         if self.rehearsal.should_use and self.rehearsal_activate:
             
             rehearsal_idxs = np.random.randint(
@@ -138,7 +139,8 @@ class ReplayBuffer(object):
             )
             idxs = np.random.randint(
                     0, self.capacity if self.full else self.idx, 
-                    size=self.batch_size - int(self.batch_size * self.rehearsal_sample_ratio)
+                    # size=self.batch_size - int(self.batch_size * self.rehearsal_sample_ratio)
+                    size = self.batch_size # here we sample batch_size number of current env
                 )
             prev_env_obses = torch.as_tensor(self.rehearsal_env_obses[rehearsal_idxs], device=self.device).float()
             prev_actions = torch.as_tensor(self.rehearsal_actions[rehearsal_idxs], device=self.device)

@@ -274,12 +274,15 @@ class Agent(AbstractAgent):
         self.log_alpha_optimizer = hydra.utils.instantiate(
             self.alpha_optimizer_cfg, params=self.get_parameters(name="log_alpha")
         )
-        self._optimizers = {
-                "encoder": self.encoder_optimizer,
-                "actor": self.actor_optimizer,
-                "critic": self.critic_optimizer,
-                "log_alpha": self.log_alpha_optimizer,
-            }
+        # self._optimizers = {
+        #         "encoder": self.encoder_optimizer,
+        #         "actor": self.actor_optimizer,
+        #         "critic": self.critic_optimizer,
+        #         "log_alpha": self.log_alpha_optimizer,
+        #     }
+        self._optimizers['critic']=self.critic_optimizer
+        self._optimizers['actor']=self.actor_optimizer
+        self._optimizers['log_alpha']=self.log_alpha_optimizer
         return True
 
 
@@ -584,7 +587,8 @@ class Agent(AbstractAgent):
         
         
         if self.bnp_model.model is None:
-            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), dim = 1), dim = 0).to(self.device)
+            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), 
+                                                   dim = 1), dim = 0).to(self.device)
         
         else:
             # get probability assignment of each z to each component & parameters of each component distribution
@@ -594,23 +598,23 @@ class Agent(AbstractAgent):
             if kl_method == 'soft':
                 # get a distribution of the latent variable
                 dist = torch.distributions.MultivariateNormal(
-                    loc=mu_q.cpu(),
-                    covariance_matrix=torch.diag_embed(var_q).cpu()
+                    loc=mu_q,
+                    covariance_matrix=torch.diag_embed(var_q)
                 )
                 # get a distribution for each cluster
                 B, K = prob_comps.shape # batch_shape, number of active components
-                kl_qz_pz = torch.zeros(B)
+                kl_qz_pz = torch.zeros(B).to(self.device)
                 # build each component distribution & calculate the kl divergence D_kl(q || p)
                 for k in range(K):
                     prob_k = prob_comps[:, k]
                     dist_k = torch.distributions.MultivariateNormal(
-                        loc=self.bnp_model.comp_mu[k],
-                        covariance_matrix=torch.diag_embed(self.bnp_model.comp_var[k])
+                        loc=self.bnp_model.comp_mu[k].to(self.device),
+                        covariance_matrix=torch.diag_embed(self.bnp_model.comp_var[k]).to(self.device)
                     )
                     expanded_dist_k = dist_k.expand(dist.batch_shape)    # batch_shape [batch_size], event_shape [latent_dim]
                     kld_k = torch.distributions.kl_divergence(dist, expanded_dist_k)   #  shape [batch_shape, ]
                     # soft assignment
-                    kl_qz_pz += torch.from_numpy(prob_k) * kld_k
+                    kl_qz_pz += torch.from_numpy(prob_k).to(self.device) * kld_k
                 
             else: # kl_method = hard
                 # calcualte kl divergence via hard assignment: assigning to the most  likely learned DPMM cluster

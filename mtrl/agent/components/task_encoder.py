@@ -73,8 +73,19 @@ class TaskEncoder(base_component.Component):
                 metadata = json.load(f) # dict with key='task name, e.g. reach-v1', value = list with 768 length
             # ordered_task_list from experiment, build_envs(), metadata
             ordered_task_list = pretrained_embedding_cfg.ordered_task_list # provide task name
+            
+            # check and replace the v2 to v1
+            if ordered_task_list[0].split('-')[-1] == 'v2':
+                new_ordered_task_list = []
+                for idx, name in enumerate(ordered_task_list):
+                    # replace all v2 to v1 to fit the metadata name
+                    new_name = name.replace(name[-1], '1')
+                    new_ordered_task_list.append(new_name)
+            else:
+                new_ordered_task_list = ordered_task_list
+
             pretrained_embedding = torch.Tensor(
-                [metadata[task] for task in ordered_task_list]
+                [metadata[task] for task in new_ordered_task_list]
             )
             assert num_embeddings == pretrained_embedding.shape[0] # num embedding == num_envs
             pretrained_embedding_dim = pretrained_embedding.shape[1] # Input of pretrained NLP model = 768 in mt10
