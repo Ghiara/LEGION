@@ -191,8 +191,7 @@ class Agent(AbstractAgent):
         self.loss_reduction = loss_reduction # mean
         
         ##########################################################################
-        if self.encoder_cfg.should_reconstruct:
-            self.reconstruction_loss = nn.MSELoss(reduction='sum').to(self.device)
+        self.reconstruction_loss = nn.MSELoss(reduction='sum').to(self.device)
         ##########################################################################
         
         if self.encoder_cfg.type == 'vae':
@@ -260,11 +259,11 @@ class Agent(AbstractAgent):
     
     def reset_optimizer(self):
         '''
-        reset optimizer, used in CRL
+        reset all optimizers, used in CRL
         '''
-        # self.encoder_optimizer = hydra.utils.instantiate(
-        #         self.encoder_optimizer_cfg, params=self.get_parameters(name="encoder")
-        #     )
+        self.encoder_optimizer = hydra.utils.instantiate(
+                self.encoder_optimizer_cfg, params=self.get_parameters(name="encoder")
+            )
         self.actor_optimizer = hydra.utils.instantiate(
             self.actor_optimizer_cfg, params=self.get_parameters(name="actor")
         )
@@ -280,6 +279,7 @@ class Agent(AbstractAgent):
         #         "critic": self.critic_optimizer,
         #         "log_alpha": self.log_alpha_optimizer,
         #     }
+        self._optimizers['encoder']=self.encoder_optimizer
         self._optimizers['critic']=self.critic_optimizer
         self._optimizers['actor']=self.actor_optimizer
         self._optimizers['log_alpha']=self.log_alpha_optimizer
@@ -818,25 +818,25 @@ class Agent(AbstractAgent):
         return task_info
 
     # out of date
-    def update_task_encoder(
-        self,
-        batch: ReplayBufferSample,
-        task_info: TaskInfo,
-        logger: Logger,
-        step: int,
-        kwargs_to_compute_gradient: Dict[str, Any],
-    ) -> None:
-        """Update the task encoder component.
+    # def update_task_encoder(
+    #     self,
+    #     batch: ReplayBufferSample,
+    #     task_info: TaskInfo,
+    #     logger: Logger,
+    #     step: int,
+    #     kwargs_to_compute_gradient: Dict[str, Any],
+    # ) -> None:
+    #     """Update the task encoder component.
 
-        Args:
-            batch (ReplayBufferSample): batch from the replay buffer.
-            task_info (TaskInfo): task_info object.
-            logger ([Logger]): logger object.
-            step (int): step for tracking the training of the agent.
-            kwargs_to_compute_gradient (Dict[str, Any]):
+    #     Args:
+    #         batch (ReplayBufferSample): batch from the replay buffer.
+    #         task_info (TaskInfo): task_info object.
+    #         logger ([Logger]): logger object.
+    #         step (int): step for tracking the training of the agent.
+    #         kwargs_to_compute_gradient (Dict[str, Any]):
 
-        """
-        self.task_encoder_optimizer.step()
+    #     """
+    #     self.task_encoder_optimizer.step()
 
     def update_vae(self,
         batch:ReplayBufferSample,
@@ -934,7 +934,7 @@ class Agent(AbstractAgent):
         )
         
         if self.encoder_cfg.type in ['vae']:
-            latent_variable = self.update_vae(
+            _ = self.update_vae(
                 batch, task_info, 
                 logger, 
                 step=global_step, 
@@ -983,15 +983,31 @@ class Agent(AbstractAgent):
                 (local_step+1) % self.dpmm_update_freq == 0
                 ):
                 print('fit bnp_model at step: {}'.format(global_step+1))
+                
                 # using latent encoding as training objective
-                self.bnp_model.fit(latent_variable)
-                self.bnp_model.plot_clusters(latent_variable, suffix=str(global_step))
+                dpmm_batch = replay_buffer.sample(train_dpmm=True)
+                dpmm_task_encoding = self.get_task_encoding(
+                                    env_index=dpmm_batch.task_obs.squeeze(1),
+                                    disable_grad=True,
+                                    modes=["train"],
+                                    )
+                dpmm_task_info = self.get_task_info(
+                                        task_encoding=dpmm_task_encoding,
+                                        component_name="critic",
+                                        env_index=dpmm_batch.task_obs,
+                                    )
+                mtobs = MTObs(env_obs=dpmm_batch.env_obs, task_obs=dpmm_batch.task_obs, task_info=dpmm_task_info)
+                with torch.no_grad():
+                    dpmm_latent_variable, _,_,_ =self.encode(mtobs=mtobs)
+                self.bnp_model.fit(dpmm_latent_variable)
+                
+                self.bnp_model.plot_clusters(dpmm_latent_variable, suffix=str(global_step))
                 logger.log('train/K_comps', self.bnp_model.model.obsModel.K, global_step)
                 # save a sample of latent variable during training
                 if kwargs['task_name_to_idx'] is not None:
-                    if kwargs['subtask'] is not None:
+                    try:
                         prefix = 'step{}_subtask{}'.format(global_step+1, kwargs["subtask"])
-                    else:
+                    except:
                         prefix = 'step{}'.format(global_step+1)
                     
                     self.evaluate_latent_clustering(replay_buffer=replay_buffer, 
@@ -1015,7 +1031,7 @@ class Agent(AbstractAgent):
         '''
         for i in range(num_save):
             # sample batch
-            batch = replay_buffer.sample()
+            batch = replay_buffer.sample(train_dpmm=True)
             if self.should_use_task_encoder:
                 task_encoding = self.get_task_encoding(
                         env_index=batch.task_obs.squeeze(1),

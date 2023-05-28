@@ -35,6 +35,7 @@ class ReplayBuffer(object):
 
     def __init__(
         self, env_obs_shape, task_obs_shape, action_shape, capacity, batch_size, device,
+        dpmm_batch_size, # used for dpmm training 
         rehearsal # dict param used in CRL 
     ):
         self.env_obs_shape = env_obs_shape
@@ -44,6 +45,7 @@ class ReplayBuffer(object):
         self.batch_size = batch_size
         self.device = device
         self.rehearsal = rehearsal
+        self.dpmm_batch_size = dpmm_batch_size
 
         # the proprioceptive env_obs is stored as float32, pixels env_obs as uint8
         self.env_obs_dtype = np.float32 if len(env_obs_shape) == 1 else np.uint8
@@ -127,20 +129,25 @@ class ReplayBuffer(object):
         self.rehearsal_full = self.rehearsal_full or self.rehearsal_idx == 0
     #################################################################################
 
-    def sample(self, index=None) -> ReplayBufferSample:
+    def sample(self, index=None, train_dpmm=False) -> ReplayBufferSample:
         # get the sampled idxs
         ####################################################################################
-            
+        if train_dpmm:
+            b_size = self.dpmm_batch_size
+        else:
+            b_size = self.batch_size
+        
         if self.rehearsal.should_use and self.rehearsal_activate:
             
             rehearsal_idxs = np.random.randint(
                 0, self.capacity if self.rehearsal_full else self.rehearsal_idx, 
-                size=int(self.batch_size * self.rehearsal_sample_ratio)
+                size=b_size if not train_dpmm else int(b_size * self.rehearsal_sample_ratio)
             )
             idxs = np.random.randint(
                     0, self.capacity if self.full else self.idx, 
                     # size=self.batch_size - int(self.batch_size * self.rehearsal_sample_ratio)
-                    size = self.batch_size # here we sample batch_size number of current env
+                    size = b_size if not train_dpmm else int(b_size * (1.0 - self.rehearsal_sample_ratio))
+                    # here we sample batch_size number of current env
                 )
             prev_env_obses = torch.as_tensor(self.rehearsal_env_obses[rehearsal_idxs], device=self.device).float()
             prev_actions = torch.as_tensor(self.rehearsal_actions[rehearsal_idxs], device=self.device)
@@ -166,7 +173,7 @@ class ReplayBuffer(object):
         else:
             if index is None:
                 idxs = np.random.randint(
-                    0, self.capacity if self.full else self.idx, size=self.batch_size
+                    0, self.capacity if self.full else self.idx, size=b_size
                 )
             else:
                 idxs = index
@@ -177,7 +184,6 @@ class ReplayBuffer(object):
             next_env_obses = torch.as_tensor(self.next_env_obses[idxs], device=self.device).float()
             not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
             env_indices = torch.as_tensor(self.task_obs[idxs], device=self.device)
-        # add true labels
 
         return ReplayBufferSample(
             env_obses, actions, rewards, next_env_obses, not_dones, env_indices, idxs
@@ -226,6 +232,8 @@ class ReplayBuffer(object):
             capacity=num_samples,
             batch_size=self.batch_size,
             device=self.device,
+            dpmm_batch_size=self.dpmm_batch_size,
+            rehearsal=self.rehearsal
         )
         new_replay_buffer.env_obses = self.env_obses[indices]
         new_replay_buffer.next_env_obses = self.next_env_obses[indices]
@@ -233,9 +241,6 @@ class ReplayBuffer(object):
         new_replay_buffer.rewards = self.rewards[indices]
         new_replay_buffer.not_dones = self.not_dones[indices]
         new_replay_buffer.task_obs = self.task_obs[indices]
-        # add a true label
-        # new_replay_buffer.true_labels = self.true_labels[indices]
-        # new_replay_buffer.one_hot = self.one_hot[indices]
 
         return new_replay_buffer
 

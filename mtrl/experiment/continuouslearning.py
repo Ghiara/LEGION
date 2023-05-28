@@ -142,7 +142,7 @@ class Experiment(experiment.Experiment):
         return env_id_to_index_map
 
     # from metaworld check & modify
-    def evaluate_vec_env_of_tasks(self, vec_env: VecEnv, step: int, episode: int):
+    def evaluate_vec_env_of_tasks(self, vec_env: VecEnv, step: int, episode: int, record_crl_metrics:bool=False):
         """Evaluate the agent's performance on the different environments,
         vectorized as a single instance of vectorized environment.
 
@@ -248,15 +248,17 @@ class Experiment(experiment.Experiment):
                 )
                 ###############################################################################
                 if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
-                    self.crl_metrics.add(reward=subtask_reward, success_rate=subtask_success)
+                    if record_crl_metrics:
+                        self.crl_metrics.add(reward=subtask_reward, success_rate=subtask_success)
                 ###############################################################################
             start_index += offset * num_envs
 
         self.logger.dump(step)
         #######################################################################
         if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
-            self.crl_metrics.update()
-            self.crl_metrics.save_metrics()
+            if record_crl_metrics:
+                self.crl_metrics.update()
+                self.crl_metrics.save_metrics()
         #######################################################################
 
     def run(self):
@@ -475,6 +477,9 @@ class Experiment(experiment.Experiment):
         2023/05/15-16 test single env, push-v1 & dooropen-v1 - push-v1 not good, door-v1 ok
         2023/05/22    test single env, push-v2 & dooropen-v2 - push-v2 ok, door-v2 failed
         2023/05/25    test single env, window-open-v2, pick-place-v2 - window ok pick failed
+        2023/05/26    --, pick-place-v1 ok
+        2023/05/26    --, drawer-open-v2 failed
+        2023/05/27    --, drawer-open-v1 partially ok,not stable
         """
 
         exp_config = self.config.experiment
@@ -490,9 +495,13 @@ class Experiment(experiment.Experiment):
         global_episode = 0
 
         # for subtask in range(self.config.env.num_envs):
-        for subtask in range(2,3):    # 2023/05/15 (1,2) -> push-v1, 05/16 (3,4) door-open,
+        for subtask in range(0,5):    # 2023/05/15 (1,2) -> push-v1, 05/16 (3,4) door-open,
                                       # 2023/05/22 (1,2) -> push-v2, 05/23 (3,4) door-open-v2
-                                      # 2023/05/24 (8,9) -> window-v2, (2,3) pickplace-v2
+                                      # 2023/05/24 (8,9) -> window-v2, (2,3) -> pickplace-v2
+                                      # 2023/05/26 (2,3) -> pickplace-v1
+                                      # 2023/05/26 (4,5) -> drawer-open-v2
+                                      # 2023/05/27 (4,5) -> drawer-open-v1
+                                      # 2023/05/28 (0,5) -> first 5 subtasks
             # set up each subtask
             crl_obs = crl_env.reset(subtask)
             env_indices = crl_obs["task_obs"]
@@ -527,7 +536,7 @@ class Experiment(experiment.Experiment):
             
             self.logger.log_text('train/subtask_name', crl_env.current_env_name, subtask)
             print(f'start training sub task(s): {crl_env.current_env_name}, with env indices: {env_indices}')
-            print('reset replay buffer: ',self.replay_buffer.is_empty())
+            print('is replay buffer reset: ',self.replay_buffer.is_empty())
             print(f'reset optimizer: {is_optim_reset}')
             print(f'reset SAC critics: {is_critics_reset}')
             print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
@@ -577,6 +586,11 @@ class Experiment(experiment.Experiment):
                     # reset log metrics
                     episode_reward = np.full(shape=crl_env.current_env_num, fill_value=0.0)
                     success = np.full(shape=crl_env.current_env_num, fill_value=0.0)
+
+                    # evaluate all envs performance
+                    if step % exp_config.eval_freq == 0:
+                        self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
+                                                   step=global_step, episode=subtask)
 
 
                 # interactive with the envs TODO: Check validity
@@ -660,8 +674,11 @@ class Experiment(experiment.Experiment):
                 global_step += 1
             # end of subtask training
             
+            # final evaluation of each subtask phase
             self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
-                                        step=global_step, episode=subtask)
+                                        step=global_step, 
+                                        episode=subtask, 
+                                        record_crl_metrics=True)
             
             if exp_config.save.model:
                 self.agent.save(
@@ -697,11 +714,14 @@ class Experiment(experiment.Experiment):
             self.record_videos()
             print('video recording finished. Check folder:{}'.format(self.video.dir_name))
         ####################################################################
-        # self.crl_metrics.to_csv()
         self.replay_buffer.delete_from_filesystem(self.buffer_dir)
         self.close_envs()
         self.logger.tb_writer.close()
-        print('Training finished')
+        self.crl_metrics.to_csv()
+        print('====== Training finished ======')
+
+
+
 
 
     def collect_trajectory(self, vec_env: VecEnv, num_steps: int) -> None:
@@ -742,7 +762,6 @@ class Experiment(experiment.Experiment):
 
             multitask_obs = next_multitask_obs
             episode_step += 1
-
 
     def record_videos(self):
             """
