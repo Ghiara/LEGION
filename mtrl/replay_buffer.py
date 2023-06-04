@@ -127,6 +127,27 @@ class ReplayBuffer(object):
 
         self.rehearsal_idx = (self.rehearsal_idx + 1) % self.capacity
         self.rehearsal_full = self.rehearsal_full or self.rehearsal_idx == 0
+    
+    def collect_rehearsal_transitions(self, size_to_save):
+        '''
+        Inputs: size of current subtask transitions to save
+        Only used when rehearsal buffer exists
+        '''
+        idxs = np.random.randint(
+                int(0.5*self.capacity) if self.full else int(0.5*self.idx),  
+                self.capacity if self.full else self.idx, 
+                size=size_to_save
+            )
+
+        np.copyto(self.rehearsal_env_obses[self.rehearsal_idx : self.rehearsal_idx+size_to_save], self.env_obses[idxs])
+        np.copyto(self.rehearsal_actions[self.rehearsal_idx : self.rehearsal_idx+size_to_save], self.actions[idxs])
+        np.copyto(self.rehearsal_rewards[self.rehearsal_idx : self.rehearsal_idx+size_to_save], self.rewards[idxs])
+        np.copyto(self.rehearsal_next_env_obses[self.rehearsal_idx : self.rehearsal_idx+size_to_save], self.next_env_obses[idxs])
+        np.copyto(self.rehearsal_not_dones[self.rehearsal_idx : self.rehearsal_idx+size_to_save], self.not_dones[idxs])
+        np.copyto(self.rehearsal_task_obs[self.rehearsal_idx : self.rehearsal_idx+size_to_save], self.task_obs[idxs])
+
+        self.rehearsal_idx = (self.rehearsal_idx + size_to_save) % self.capacity
+        self.rehearsal_full = self.rehearsal_full or self.rehearsal_idx == 0
     #################################################################################
 
     def sample(self, index=None, train_dpmm=False) -> ReplayBufferSample:
@@ -156,19 +177,19 @@ class ReplayBuffer(object):
             prev_not_dones = torch.as_tensor(self.rehearsal_not_dones[rehearsal_idxs], device=self.device)
             prev_env_indices = torch.as_tensor(self.rehearsal_task_obs[rehearsal_idxs], device=self.device)
         
-            env_obses = torch.as_tensor(self.env_obses[idxs], device=self.device).float()
-            actions = torch.as_tensor(self.actions[idxs], device=self.device)
-            rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
-            next_env_obses = torch.as_tensor(self.next_env_obses[idxs], device=self.device).float()
-            not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
-            env_indices = torch.as_tensor(self.task_obs[idxs], device=self.device)
+            curr_env_obses = torch.as_tensor(self.env_obses[idxs], device=self.device).float()
+            curr_actions = torch.as_tensor(self.actions[idxs], device=self.device)
+            curr_rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
+            curr_next_env_obses = torch.as_tensor(self.next_env_obses[idxs], device=self.device).float()
+            curr_not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
+            curr_env_indices = torch.as_tensor(self.task_obs[idxs], device=self.device)
 
-            env_obses = torch.cat([env_obses, prev_env_obses], dim=0)
-            actions = torch.cat([actions, prev_actions], dim=0)
-            rewards = torch.cat([rewards, prev_rewards], dim=0)
-            next_env_obses = torch.cat([next_env_obses, prev_next_env_obses], dim=0)
-            not_dones = torch.cat([not_dones, prev_not_dones], dim=0)
-            env_indices = torch.cat([env_indices, prev_env_indices], dim=0)
+            env_obses = torch.cat([curr_env_obses, prev_env_obses], dim=0)
+            actions = torch.cat([curr_actions, prev_actions], dim=0)
+            rewards = torch.cat([curr_rewards, prev_rewards], dim=0)
+            next_env_obses = torch.cat([curr_next_env_obses, prev_next_env_obses], dim=0)
+            not_dones = torch.cat([curr_not_dones, prev_not_dones], dim=0)
+            env_indices = torch.cat([curr_env_indices, prev_env_indices], dim=0)
         ###############################################################################################
         else:
             if index is None:

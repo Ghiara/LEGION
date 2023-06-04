@@ -19,7 +19,7 @@ from mtrl.agent.components import moe_layer
 from mtrl.agent.ds.mt_obs import MTObs
 from mtrl.utils import config as config_utils
 from mtrl.utils.types import ConfigType, ModelType, TensorType
-
+from mtrl.replay_buffer import ReplayBufferSample
 
 def tie_weights(src, trg):
     assert type(src) == type(trg)
@@ -109,8 +109,6 @@ class VAE_Encoder(Encoder):
         else: 
             self.input_dim = env_obs_shape[0]
 
-        # 2023/03/22 only receive metadata encoding
-        # self.input_dim = 768
         
         # encoder
         self.trunk = self.build_mlp(input_dim=self.input_dim, 
@@ -122,12 +120,27 @@ class VAE_Encoder(Encoder):
         self.log_var_latent = nn.Linear(hidden_dim, latent_dim)
         
         # decoder
-        if self.should_reconstruct:
-            self.decoder = self.build_mlp(input_dim=latent_dim,
-                                          hidden_dim=hidden_dim,
-                                          output_dim=768, # hard code dim, we reconstruct embedding
-                                          num_layers=num_layers+1,
-                                          output_activation=False)
+        # if self.should_reconstruct:
+        #     self.decoder = self.build_mlp(input_dim=latent_dim,
+        #                                   hidden_dim=hidden_dim,
+        #                                   output_dim=768, # hard code dim, we reconstruct embedding
+        #                                   num_layers=num_layers+1,
+        #                                   output_activation=False)
+        self.decoder_context = self.build_mlp(input_dim=latent_dim + env_obs_shape[0] + 4,
+                                        hidden_dim=hidden_dim,
+                                        output_dim=768, # hard code dim, we reconstruct embedding
+                                        num_layers=num_layers+1,
+                                        output_activation=False)
+        self.decoder_state = self.build_mlp(input_dim=latent_dim + env_obs_shape[0] + 4,
+                                        hidden_dim=hidden_dim,
+                                        output_dim=env_obs_shape[0], # hard code dim, we reconstruct embedding
+                                        num_layers=num_layers+1,
+                                        output_activation=False)
+        self.decoder_reward = self.build_mlp(input_dim=latent_dim + env_obs_shape[0] + 4,
+                                        hidden_dim=hidden_dim,
+                                        output_dim=1, # hard code dim, we reconstruct embedding
+                                        num_layers=num_layers+1,
+                                        output_activation=False)
 
 
     def build_mlp(self, input_dim, hidden_dim, output_dim, num_layers, output_activation=False):
@@ -160,7 +173,8 @@ class VAE_Encoder(Encoder):
         eps = torch.randn_like(std)
         return eps * std + mu
     
-    def forward(self, mtobs: MTObs, detach: bool = False):
+    def forward(self, mtobs: MTObs, batch:ReplayBufferSample, 
+                should_reconst:bool, detach: bool = False):
         
         if self.input_mode in ['context_obs']:
             env_obs = torch.cat([mtobs.env_obs, mtobs.task_info.encoding], dim=-1)
@@ -173,11 +187,14 @@ class VAE_Encoder(Encoder):
         log_var = self.log_var_latent(self.trunk(env_obs))
         
         z = self.sample(mu, log_var)
-
-        if self.should_reconstruct:
-            reconst = torch.tanh(self.decoder(z))
-        else:
-            reconst = None
+        # reconst = torch.tanh(self.decoder(z))
+        
+        reconst = {}
+        if should_reconst and batch is not None:
+            decoder_inputs = torch.cat([batch.env_obs, batch.action, z], dim=-1)
+            reconst['context'] = torch.tanh(self.decoder_context(decoder_inputs))
+            reconst['next_obs'] = self.decoder_state(decoder_inputs)
+            reconst['reward'] = self.decoder_reward(decoder_inputs)
         
         if detach:
             z.detach()

@@ -335,6 +335,24 @@ class Experiment(experiment.Experiment):
         
         # train loop
         for step in range(self.start_step, exp_config.num_train_steps):
+            
+            # evaluate agent periodically
+            if step % exp_config.eval_freq == 0:
+                self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
+                                                step=step, episode=episode)
+                
+                if exp_config.save.model:
+                    self.agent.save(
+                        self.model_dir,
+                        step=step,
+                        retain_last_n=exp_config.save.model.retain_last_n,
+                    )
+                if exp_config.save.buffer.should_save:
+                    self.replay_buffer.save(
+                        self.buffer_dir,
+                        size_per_chunk=exp_config.save.buffer.size_per_chunk,
+                        num_samples_to_save=exp_config.save.buffer.num_samples_to_save,
+                    )
 
             # log after every episode
             if step % self.max_episode_steps == 0:  # Perform logging & Evaluation after every episode
@@ -359,32 +377,14 @@ class Experiment(experiment.Experiment):
                     self.logger.log("train/duration", time.time() - start_time, step, tb_log=False)
                     start_time = time.time()
                     self.logger.dump(step) # dump to file & console
-
-                # evaluate agent periodically
-                if step % exp_config.eval_freq == 0:
-                    
-                    self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
-                                                   step=step, episode=episode)
-                    
-                    if exp_config.save.model:
-                        self.agent.save(
-                            self.model_dir,
-                            step=step,
-                            retain_last_n=exp_config.save.model.retain_last_n,
-                        )
-                    if exp_config.save.buffer.should_save:
-                        self.replay_buffer.save(
-                            self.buffer_dir,
-                            size_per_chunk=exp_config.save.buffer.size_per_chunk,
-                            num_samples_to_save=exp_config.save.buffer.num_samples_to_save,
-                        )
                 episode += 1
                 # reset logged value
                 episode_reward = np.full(shape=vec_env.num_envs, fill_value=0.0)
                 if "success" in self.metrics_to_track:
                     success = np.full(shape=vec_env.num_envs, fill_value=0.0)
-
                 self.logger.log("train/episode", episode, step, tb_log=False)
+
+
 
             if step < exp_config.init_steps:
                 # warmup steps
@@ -480,6 +480,8 @@ class Experiment(experiment.Experiment):
         2023/05/26    --, pick-place-v1 ok
         2023/05/26    --, drawer-open-v2 failed
         2023/05/27    --, drawer-open-v1 partially ok,not stable
+        2023/05/28    (0,5) -> first 5 subtasks, old structure unstable
+        2023/06/01    (0,4) -> first 4 subtasks, new structure, reset vae with lr 3e-4
         """
 
         exp_config = self.config.experiment
@@ -495,13 +497,8 @@ class Experiment(experiment.Experiment):
         global_episode = 0
 
         # for subtask in range(self.config.env.num_envs):
-        for subtask in range(0,5):    # 2023/05/15 (1,2) -> push-v1, 05/16 (3,4) door-open,
-                                      # 2023/05/22 (1,2) -> push-v2, 05/23 (3,4) door-open-v2
-                                      # 2023/05/24 (8,9) -> window-v2, (2,3) -> pickplace-v2
-                                      # 2023/05/26 (2,3) -> pickplace-v1
-                                      # 2023/05/26 (4,5) -> drawer-open-v2
-                                      # 2023/05/27 (4,5) -> drawer-open-v1
-                                      # 2023/05/28 (0,5) -> first 5 subtasks
+        for subtask in range(0,4):
+            
             # set up each subtask
             crl_obs = crl_env.reset(subtask)
             env_indices = crl_obs["task_obs"]
@@ -516,6 +513,10 @@ class Experiment(experiment.Experiment):
                 is_optim_reset = self.agent.reset_optimizer()
             else:
                 is_optim_reset = False
+            if exp_config.should_reset_vae and subtask>0:
+                is_vae_reset = self.agent.reset_vae()
+            else:
+                is_vae_reset = False
             # reset critics & target critics
             if exp_config.should_reset_critics and subtask>0:
                 is_critics_reset = self.agent.reset_critics()
@@ -539,11 +540,19 @@ class Experiment(experiment.Experiment):
             print('is replay buffer reset: ',self.replay_buffer.is_empty())
             print(f'reset optimizer: {is_optim_reset}')
             print(f'reset SAC critics: {is_critics_reset}')
+            print(f'reset VAE weights: {is_vae_reset}')
             print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
+            print(f'buffer content:{self.replay_buffer.idx}, rehearsal content:{self.replay_buffer.rehearsal_idx}')
             start_time = time.time()
 
             # start subtask training
             for step in range(exp_config.num_train_steps):
+
+                # evaluate all envs performance
+                if step % exp_config.eval_freq == 0:
+                    self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
+                                                step=global_step, episode=subtask)
+                    self.logger.dump(global_step)
                 
                 # Perform logging & Evaluation after every episode  
                 if step % self.max_episode_steps == 0:
@@ -587,13 +596,8 @@ class Experiment(experiment.Experiment):
                     episode_reward = np.full(shape=crl_env.current_env_num, fill_value=0.0)
                     success = np.full(shape=crl_env.current_env_num, fill_value=0.0)
 
-                    # evaluate all envs performance
-                    if step % exp_config.eval_freq == 0:
-                        self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
-                                                   step=global_step, episode=subtask)
 
-
-                # interactive with the envs TODO: Check validity
+                # interactive with the envs
                 if step < exp_config.init_steps:
                     # warmup steps
                     action = np.asarray(
@@ -652,29 +656,35 @@ class Experiment(experiment.Experiment):
                             done_bool,
                             task_obs=env_index,
                         )
-                    # save transitions for rehearsal
-                    if (self.config.replay_buffer.rehearsal.should_use and 
-                        # we collect last 100 episodes of each subtask as rehearsal experience
-                        step >= (exp_config.num_train_steps - 
-                        self.config.replay_buffer.rehearsal.last_eps_num*self.max_episode_steps)
-                        ):
-                        # each phase we collect last_eps_num episodes
-                        self.replay_buffer.add_to_rehearsal(
-                            crl_obs["env_obs"][index],
-                            action[index],
-                            reward[index],
-                            next_crl_obs["env_obs"][index],
-                            done_bool,
-                            task_obs=env_index,
-                        )
+                    # # save transitions for rehearsal
+                    # if (self.config.replay_buffer.rehearsal.should_use and 
+                    #     # we collect last 100 episodes of each subtask as rehearsal experience
+                    #     step >= (exp_config.num_train_steps - 
+                    #     self.config.replay_buffer.rehearsal.last_eps_num*self.max_episode_steps)
+                    #     ):
+                    #     # each phase we collect last_eps_num episodes
+                    #     self.replay_buffer.add_to_rehearsal(
+                    #         crl_obs["env_obs"][index],
+                    #         action[index],
+                    #         reward[index],
+                    #         next_crl_obs["env_obs"][index],
+                    #         done_bool,
+                    #         task_obs=env_index,
+                    #     )
 
 
                 crl_obs = next_crl_obs
                 episode_step += 1
                 global_step += 1
-            # end of subtask training
+            ############## end of subtask training ################
             
+            if self.config.replay_buffer.rehearsal.should_use:
+                print('collect rehearsal transitions...')
+                self.replay_buffer.collect_rehearsal_transitions(
+                    self.config.replay_buffer.rehearsal.subtask_rehearsal_size)
+
             # final evaluation of each subtask phase
+            print('subtask final evaluation')
             self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
                                         step=global_step, 
                                         episode=subtask, 
@@ -693,7 +703,7 @@ class Experiment(experiment.Experiment):
                     size_per_chunk=exp_config.save.buffer.size_per_chunk,
                     num_samples_to_save=exp_config.save.buffer.num_samples_to_save,
                 )
-        # end of total training
+        ############## end of total training ###############
         
         # ####################################################################
         # if self.config.experiment.eval_latent_representation:

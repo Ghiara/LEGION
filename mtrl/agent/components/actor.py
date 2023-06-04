@@ -570,18 +570,9 @@ class DPMM_Actor(BaseActor):
         """
         model_output_dim = 2 * action_shape[0]
 
-        if self.encoder_cfg.type in ["moe", "fmoe"]:
-            model_input_dim = encoder_cfg.encoder_cfg.feature_dim
-            if (
-            "should_use_task_encoder" in multitask_cfg
-            and multitask_cfg.should_use_task_encoder
-            and self.should_condition_encoder_on_task_info
-            and self.should_concatenate_task_info_with_encoder
-            ):
-                model_input_dim += multitask_cfg.task_encoder_cfg.model_cfg.output_dim
         #########################################################
         # TODO: check whether use state conditioned policy inputs
-        elif self.encoder_cfg.type in ['vae']:
+        if self.encoder_cfg.type in ['vae']:
             model_input_dim = encoder_cfg.latent_dim
             # using envs obs as policy inputs
             model_input_dim += env_obs_shape[0]
@@ -589,16 +580,27 @@ class DPMM_Actor(BaseActor):
         else:
             model_input_dim = encoder_cfg.feature_dim
         
-
-
-    
-        trunk = self._make_trunk(
-            input_dim=model_input_dim,
-            hidden_dim=hidden_dim,
-            output_dim=model_output_dim,
-            num_layers=num_layers,
-            multitask_cfg=multitask_cfg,
+        # trunk = self._make_trunk(
+        #     input_dim=model_input_dim,
+        #     hidden_dim=hidden_dim,
+        #     output_dim=model_output_dim,
+        #     num_layers=num_layers,
+        #     multitask_cfg=multitask_cfg,
+        # )
+        trunk = nn.Sequential(
+            nn.Linear(model_input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_dim, model_output_dim),
         )
+
+
         return trunk
 
     def get_last_shared_layers(self) -> List[ModelType]:

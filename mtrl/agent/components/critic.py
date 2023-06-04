@@ -138,14 +138,25 @@ class QFunction(base_component.Component):
                 )
 
         else:
-            trunk = agent_utils.build_mlp(  # type: ignore[assignment]
-                input_dim=obs_dim + action_dim,
-                hidden_dim=hidden_dim,
-                output_dim=output_dim,
-                num_layers=num_layers,
+            # trunk = agent_utils.build_mlp(  # type: ignore[assignment]
+            #     input_dim=obs_dim + action_dim,
+            #     hidden_dim=hidden_dim,
+            #     output_dim=output_dim,
+            #     num_layers=num_layers,
+            # )
+            model_input_dim = obs_dim + action_dim
+            trunk = nn.Sequential(
+                nn.Linear(model_input_dim, hidden_dim),
+                nn.LayerNorm(hidden_dim),
+                nn.Tanh(),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_dim, 1),
             )
-            # This seems to be a false alarm since both nn.Module and
-            # SoftModularizedMLP are subtypes of ModelType.
         return trunk
 
     def build_model(
@@ -554,16 +565,9 @@ class DPMM_Critic(base_component.Component):
         if key in encoder_cfg:
             encoder_type_to_select = encoder_cfg[key]
             encoder_cfg = encoder_cfg[encoder_type_to_select]
-        if encoder_cfg.type in ["moe", "fmoe"]:
-            obs_dim = encoder_cfg.encoder_cfg.feature_dim
-            if (
-            multitask_cfg.should_use_task_encoder
-            and self.should_condition_encoder_on_task_info
-            and self.should_concatenate_task_info_with_encoder
-            ):
-                obs_dim += multitask_cfg.task_encoder_cfg.model_cfg.output_dim
+
         
-        elif encoder_cfg.type in ['vae']:
+        if encoder_cfg.type in ['vae']:
             obs_dim = encoder_cfg.latent_dim
             obs_dim += env_obs_shape[0]
         

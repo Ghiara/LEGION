@@ -191,7 +191,7 @@ class Agent(AbstractAgent):
         self.loss_reduction = loss_reduction # mean
         
         ##########################################################################
-        self.reconstruction_loss = nn.MSELoss(reduction='sum').to(self.device)
+        self.reconstruction_loss_context = nn.MSELoss(reduction='sum').to(self.device)
         ##########################################################################
         
         if self.encoder_cfg.type == 'vae':
@@ -285,6 +285,9 @@ class Agent(AbstractAgent):
         self._optimizers['log_alpha']=self.log_alpha_optimizer
         return True
 
+    def reset_vae(self):
+        self.encoder.apply(agent_utils.weight_init)
+        return True
 
     def train(self, training: bool = True) -> None:
         self.training = training
@@ -336,7 +339,8 @@ class Agent(AbstractAgent):
             merge_kwargs=merge_kwargs,
         )
     
-    def encode(self,mtobs: MTObs, detach_encoder: bool = False) -> TensorType:
+    def encode(self,mtobs: MTObs, batch:ReplayBufferSample=None, 
+                should_reconst:bool=False, detach_encoder: bool = False) -> TensorType:
         '''
         encoding from VAE to get latent encoding z, check whether to combine with context encoding
         '''
@@ -345,7 +349,8 @@ class Agent(AbstractAgent):
             # latent_encoding, latent_mu, latent_log_var = self.encoder(mtobs=mtobs, detach=detach_encoder)
             # return torch.cat((latent_encoding, context_encoding), dim=1), latent_mu, latent_log_var
             # mode 2: use context encoding as part of input of vae encoder
-            latent_encoding, latent_mu, latent_log_var, reconstruction = self.encoder(mtobs=mtobs, detach=detach_encoder)
+            latent_encoding, latent_mu, latent_log_var, reconstruction = self.encoder(
+                mtobs=mtobs, batch=batch, should_reconst=should_reconst, detach=detach_encoder)
             return latent_encoding, latent_mu, latent_log_var, reconstruction
         else:
             # CARE
@@ -563,11 +568,6 @@ class Agent(AbstractAgent):
             raise NotImplementedError('unable to compute policy loss, unsupported loss_reduction type: {}'.format(self.loss_reduction))
         
         return policy_loss, alpha_loss
-
-    ######################################################
-    ######## calculate KLD between q(z|s) & p(z) #########
-    ######################################################
-    # TODO check sampled mu_q and log_var dimension
     
     def kl_divergence(self, latent_obs, mu_q, log_var_q, kl_method='soft'):
         '''
@@ -817,27 +817,6 @@ class Agent(AbstractAgent):
             )
         return task_info
 
-    # out of date
-    # def update_task_encoder(
-    #     self,
-    #     batch: ReplayBufferSample,
-    #     task_info: TaskInfo,
-    #     logger: Logger,
-    #     step: int,
-    #     kwargs_to_compute_gradient: Dict[str, Any],
-    # ) -> None:
-    #     """Update the task encoder component.
-
-    #     Args:
-    #         batch (ReplayBufferSample): batch from the replay buffer.
-    #         task_info (TaskInfo): task_info object.
-    #         logger ([Logger]): logger object.
-    #         step (int): step for tracking the training of the agent.
-    #         kwargs_to_compute_gradient (Dict[str, Any]):
-
-    #     """
-    #     self.task_encoder_optimizer.step()
-
     def update_vae(self,
         batch:ReplayBufferSample,
         task_info: TaskInfo,
@@ -849,7 +828,8 @@ class Agent(AbstractAgent):
         
         # update VAE using information bottleneck via DPMixture Model
         mtobs = MTObs(env_obs=batch.env_obs, task_obs=batch.task_obs, task_info=task_info)
-        latent_variable, latent_mu, latent_log_var, reconstruction =self.encode(mtobs=mtobs)
+        latent_variable, latent_mu, latent_log_var, reconst =self.encode(
+            mtobs=mtobs, batch=batch, should_reconst=True)
         
         # update the VAE according to the frequence
         if (step+1) % self.kl_div_update_freq == 0:
@@ -857,9 +837,13 @@ class Agent(AbstractAgent):
             kld_loss = self.kl_divergence(latent_obs=latent_variable, mu_q=latent_mu, log_var_q=latent_log_var)
 
             # 2. reconstruction loss 
-            reconstruction_loss = self.reconstruction_loss(reconstruction, task_info.encoding)
+            # reconstruction_loss = self.reconstruction_loss(reconstruction, task_info.encoding)
+            state_loss = torch.mean((batch.next_env_obs - reconst['next_obs']) ** 2, dim=[-2, -1])
+            reward_loss = torch.mean((batch.reward - reconst['reward']) ** 2, dim=[-2, -1])
+            context_loss = self.reconstruction_loss_context(reconst['context'], mtobs.task_info.encoding)
             # 3. total VAE loss E[ logP(x|z) - beta * KL[q(z)|p(z)] ]
-            vae_loss = reconstruction_loss + self.beta_kl_z * kld_loss
+            # vae_loss = reconstruction_loss + self.beta_kl_z * kld_loss
+            vae_loss = state_loss + reward_loss + context_loss + self.beta_kl_z * kld_loss
             
             # 4. backpropargation
             self.encoder_optimizer.zero_grad()
@@ -1001,8 +985,10 @@ class Agent(AbstractAgent):
                     dpmm_latent_variable, _,_,_ =self.encode(mtobs=mtobs)
                 self.bnp_model.fit(dpmm_latent_variable)
                 
-                self.bnp_model.plot_clusters(dpmm_latent_variable, suffix=str(global_step))
+                # self.bnp_model.plot_clusters(dpmm_latent_variable, suffix=str(global_step))
+
                 logger.log('train/K_comps', self.bnp_model.model.obsModel.K, global_step)
+
                 # save a sample of latent variable during training
                 if kwargs['task_name_to_idx'] is not None:
                     try:
