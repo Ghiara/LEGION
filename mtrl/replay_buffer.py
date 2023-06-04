@@ -132,6 +132,7 @@ class ReplayBuffer(object):
         '''
         Inputs: size of current subtask transitions to save
         Only used when rehearsal buffer exists
+        sample 100000 transitions
         '''
         idxs = np.random.randint(
                 int(0.5*self.capacity) if self.full else int(0.5*self.idx),  

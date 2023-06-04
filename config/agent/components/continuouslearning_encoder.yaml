@@ -1,0 +1,55 @@
+# @package agent.encoder
+type_to_select: vae
+
+vae:
+  type: vae
+  _target_: mtrl.agent.components.encoder.VAE_Encoder
+  multitask_cfg: ${agent.multitask}
+  num_layers: 2 # number of hidden layers
+  # hidden_dim: 500
+  # latent_dim: 10 # latent gaussian encoding dim
+  hidden_dim: 400
+  latent_dim: 16
+  # feature_dim: ${agent.encoder_feature_dim} # 50
+  should_reconstruct: False
+
+
+moe:
+  type: moe
+  encoder_cfg:
+    type: feedforward
+    hidden_dim: 50
+    num_layers: 2
+    feature_dim: ${agent.encoder_feature_dim}
+    should_tie_encoders: true
+  num_experts: 6
+  task_id_to_encoder_id_cfg:
+    mode: attention #attention # supported modes are identity, ensemble, cluster, gate, attention
+    num_envs: ${env.num_envs}
+    
+    gate:
+      embedding_dim: 50
+      hidden_dim: 50
+      num_layers: 2
+      temperature: 1.0
+      should_use_soft_attention: False
+      topk: 2
+      task_encoder_cfg:
+        should_use_task_encoding: True
+        # Instead of computing a task encoding, use the task encoding computed by the task encoder. If this is true, the embedding dim should match with the task encoder's output dim.
+        should_detach_task_encoding: True
+        # Detach the representation from the task context encoder. This argument is used only if `should_use` is True.
+    
+    #############################################################################################
+    attention: # CARE
+      embedding_dim: 50
+      hidden_dim: 50
+      num_layers: 2
+      temperature: 1.0
+      should_use_soft_attention: True
+      task_encoder_cfg:
+        should_use_task_encoding: True
+        # Instead of computing a task encoding, use the task encoding computed by the task encoder. If this is true, the embedding dim should match with the task encoder's output dim.
+        should_detach_task-encoding: True # moe_layer.AttentionbasedExperts, forward task.info -> emb.detach
+        # Detach the representation from the taske encoder. This argument is used only if `should_use` is True.
+    ##############################################################################################

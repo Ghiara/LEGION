@@ -1,0 +1,5 @@
+# @package _group_
+_target_: ml_logger.logbook.make_config
+write_to_console: False
+logger_dir: ${setup.save_dir}
+create_multiple_log_files: False

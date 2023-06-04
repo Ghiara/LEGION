@@ -1,0 +1,62 @@
+# @package agent.multitask
+
+num_envs: ${env.num_envs}
+should_use_disentangled_alpha: True # True will use disentangled alpha otherwise use FC network
+should_use_task_encoder: True
+should_use_dpmm: True
+encoder_input_setup:  context_obs # context_obs: meta embed+obs; context: only meta_embed; obs: only obs
+
+task_encoder_cfg: # Metadata context encoder cfg
+  model_cfg:
+    _target_: mtrl.agent.components.task_encoder.TaskEncoder
+    pretrained_embedding_cfg:
+      should_use: True
+      # change the metadata path
+      path_to_load_from: /home/yuan/Desktop/MasterThesis/src/CARE/mtrl/metadata/task_embedding/roberta_small/${env.name}.json
+      # path_to_load_from: /private/home/sodhani/projects/mtrl/metadata/task_embedding/roberta_small/${env.name}.json
+      ordered_task_list: ${env.ordered_task_list}
+    num_embeddings: ${agent.multitask.num_envs}
+    embedding_dim: 50
+    hidden_dim: 50
+    num_layers: 2
+    output_dim: 50 # default 50, in VAE-DPMM 5 output of final context encoding
+  optimizer_cfg: ${agent.optimizers.actor}
+  losses_to_train: ["critic", "decoder", "task_encoder", "encoder"]
+
+
+actor_cfg:
+  should_condition_model_on_task_info: False
+  should_condition_encoder_on_task_info: True
+  should_concatenate_task_info_with_encoder: True
+
+critic_cfg: ${agent.multitask.actor_cfg}
+
+dpmm_cfg: # dpmm model cfg
+  save_dir: ${setup.save_dir}/dpmm_model/
+  num_lap: 2
+  kl_method: soft
+  gamma0: 5.0
+  sF: 0.00001 # scale factor of Gaussian covariance
+  
+  beta_kl_z: 0.05 # penalty factor of latent space KL divergence loss
+  kl_div_update_freq: 10 # update the encoder kl divergence per ? steps
+  dpmm_update_start_step: 3000
+  dpmm_update_freq: 15000 # every 100 episodes
+  
+  birth_kwargs:
+    b_startLap: 1
+    b_stopLap: 2
+    b_Kfresh: 10
+    b_minNumAtomsForNewComp: 16.0
+    b_minNumAtomsForTargetComp: 16.0
+    b_minNumAtomsForRetainComp: 16.0
+    b_minPercChangeInNumAtomsToReactivate: 0.05
+    b_debugWriteHTML: 0
+  
+  merge_kwargs:
+    m_startLap: 2
+    m_maxNumPairsContainingComp: 50
+    m_nLapToReactivate: 1
+    m_pair_ranking_procedure: obsmodel_elbo
+    # m_pair_ranking_procedure: total_size
+    m_pair_ranking_direction: descending

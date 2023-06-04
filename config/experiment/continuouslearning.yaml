@@ -1,0 +1,34 @@
+# @package _group_
+name: continuouslearning
+builder:
+  _target_: mtrl.experiment.${experiment.name}.Experiment
+init_steps: 1500 # Do not change this
+num_train_steps: 1000000
+eval_freq: 5000 # same as save frequency. This should be a muliple of save.buffer.size_per_chunk
+num_eval_episodes: 10
+should_resume: True
+
+#####################################################################
+training_mode: multitask          # 3 types: multitask, crl_queue, crl_expand
+# following setup only used in CRL setting
+should_reset_replay_buffer: True  # reset replay buffer when every subtask changes
+should_reset_optimizer: True      # reset critic optimizer when every subtask changes
+should_reset_critics: False        # reset critics weights when every subtask changes
+should_reset_vae: False           # reset VAE part before every subtask training
+eval_latent_representation: True  # save latent encoding as clustering
+num_save: 5                       # number of saved batchs
+#####################################################################
+
+save:
+  model:
+    retain_last_n: 1
+    # setting a natural number (say 5) retains the last n (say 5) models.
+    # setting -1 retains all the models.
+    # setting 0 retains no models.
+  buffer:
+    should_save: True
+    size_per_chunk: 10000
+    num_samples_to_save: -1 # number of samples to save. Set to -1 to save all samples
+save_dir: ${setup.save_dir}
+save_video: False
+envs_to_exclude_during_training:

@@ -1,0 +1,8 @@
+# @package agent.actor
+
+_target_: mtrl.agent.components.actor.DPMM_Actor
+num_layers: 3
+hidden_dim: 300
+log_std_bounds: [-20, 2]
+encoder_cfg: ${agent.encoder}
+multitask_cfg: ${agent.multitask}

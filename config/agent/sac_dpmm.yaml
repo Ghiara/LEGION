@@ -1,0 +1,32 @@
+# @package _group_
+name: sac_dpmm
+
+encoder_feature_dim: 50
+num_layers: 0
+num_filters: 0
+
+builder:
+  _target_: mtrl.agent.sac_dpmm.Agent
+  # obs_shape
+  # action_shape
+  # device
+
+  # TODO modify
+  encoder_cfg: ${agent.encoder}
+  # decoder_cfg: ${agent.decoder}
+
+  actor_cfg: ${agent.actor} 
+  critic_cfg: ${agent.critic}
+  multitask_cfg: ${agent.multitask}
+
+  encoder_optimizer_cfg: ${agent.optimizers.encoder}
+
+  alpha_optimizer_cfg: ${agent.optimizers.alpha}
+  actor_optimizer_cfg: ${agent.optimizers.actor}
+  critic_optimizer_cfg: ${agent.optimizers.critic}
+  discount: 0.99
+  init_temperature: 1.0
+  actor_update_freq: 1
+  critic_tau: 0.005
+  critic_target_update_freq: 1
+  encoder_tau: 0.05
