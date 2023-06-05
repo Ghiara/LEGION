@@ -508,25 +508,27 @@ class Experiment(experiment.Experiment):
             # reset replay buffer
             if exp_config.should_reset_replay_buffer:
                 self.replay_buffer.reset()
-            # reset optimizer
-            if exp_config.should_reset_optimizer and subtask>0:
-                is_optim_reset = self.agent.reset_optimizer()
-            else:
-                is_optim_reset = False
-            if exp_config.should_reset_vae and subtask>0:
-                is_vae_reset = self.agent.reset_vae()
-            else:
-                is_vae_reset = False
+            # setup rehearsal buffer
+            if self.config.replay_buffer.rehearsal.should_use:
+                if subtask > 0:
+                    # only up to second phase we activate the rehearsal strategy
+                    self.replay_buffer.rehearsal_activate = True
             # reset critics & target critics
             if exp_config.should_reset_critics and subtask>0:
                 is_critics_reset = self.agent.reset_critics()
             else:
                 is_critics_reset = False
-            # setup rehearsal
-            if self.config.replay_buffer.rehearsal.should_use:
-                if subtask > 0:
-                    # only up to second phase we activate the rehearsal strategy
-                    self.replay_buffer.rehearsal_activate = True
+            # reset vae
+            if exp_config.should_reset_vae and subtask>0:
+                is_vae_reset = self.agent.reset_vae()
+            else:
+                is_vae_reset = False
+
+            # reset optimizer (make sure only reset optimizer after reseting the model)
+            if exp_config.should_reset_optimizer and subtask>0:
+                is_optim_reset = self.agent.reset_optimizer()
+            else:
+                is_optim_reset = False
             # reset metrics
             success, episode_reward, episode_step, done = [
                 np.full(shape=crl_env.current_env_num, fill_value=fill_value)
@@ -538,9 +540,9 @@ class Experiment(experiment.Experiment):
             self.logger.log_text('train/subtask_name', crl_env.current_env_name, subtask)
             print(f'start training sub task(s): {crl_env.current_env_name}, with env indices: {env_indices}')
             print('is replay buffer reset: ',self.replay_buffer.is_empty())
-            print(f'reset optimizer: {is_optim_reset}')
             print(f'reset SAC critics: {is_critics_reset}')
             print(f'reset VAE weights: {is_vae_reset}')
+            print(f'reset optimizer: {is_optim_reset}')
             print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
             print(f'buffer content:{self.replay_buffer.idx}, rehearsal content:{self.replay_buffer.rehearsal_idx}')
             start_time = time.time()
