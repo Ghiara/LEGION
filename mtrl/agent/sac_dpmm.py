@@ -286,6 +286,9 @@ class Agent(AbstractAgent):
         return True
 
     def reset_vae(self):
+        '''
+        reset vae networks weights
+        '''
         self.encoder.apply(agent_utils.weight_init)
         return True
 
@@ -433,7 +436,7 @@ class Agent(AbstractAgent):
             mtobs = MTObs(env_obs=obs, task_obs=env_index, task_info=task_info)
             ##################################################
             # TODO modify to add vae encoder
-            encoding, _, _, _ = self.encode(mtobs=mtobs)
+            encoding, _, _, _ = self.encode(mtobs=mtobs, detach_encoder=True)
             mu, pi, _, _ = self.actor(mtobs=mtobs, latent_obs=encoding)
             ##################################################
             if sample:
@@ -506,7 +509,7 @@ class Agent(AbstractAgent):
             TensorType: target values.
         """
         mtobs = MTObs(env_obs=batch.next_env_obs, task_obs=None, task_info=task_info)
-        encoding,_,_,_ =self.encode(mtobs=mtobs)
+        encoding,_,_,_ =self.encode(mtobs=mtobs, detach_encoder=True)
         _, policy_action, log_pi, _ = self.actor(mtobs=mtobs, latent_obs = encoding)
         target_Q1, target_Q2 = self.critic_target(mtobs=mtobs, latent_obs = encoding ,action=policy_action)
         return (
@@ -522,7 +525,7 @@ class Agent(AbstractAgent):
 
         # get current Q estimates
         mtobs = MTObs(env_obs=batch.env_obs, task_obs=None, task_info=task_info)
-        encoding,_,_,_ =self.encode(mtobs=mtobs)
+        encoding,_,_,_ =self.encode(mtobs=mtobs, detach_encoder=True)
         current_Q1, current_Q2 = self.critic(
             mtobs=mtobs,
             latent_obs = encoding,
@@ -839,11 +842,12 @@ class Agent(AbstractAgent):
             # 2. reconstruction loss 
             # reconstruction_loss = self.reconstruction_loss(reconstruction, task_info.encoding)
             state_loss = torch.mean((batch.next_env_obs - reconst['next_obs']) ** 2, dim=[-2, -1])
-            reward_loss = torch.mean((batch.reward - reconst['reward']) ** 2, dim=[-2, -1])
+            # reward_loss = torch.mean((batch.reward - reconst['reward']) ** 2, dim=[-2, -1])
             context_loss = self.reconstruction_loss_context(reconst['context'], mtobs.task_info.encoding)
             # 3. total VAE loss E[ logP(x|z) - beta * KL[q(z)|p(z)] ]
             # vae_loss = reconstruction_loss + self.beta_kl_z * kld_loss
-            vae_loss = state_loss + reward_loss + context_loss + self.beta_kl_z * kld_loss
+            # vae_loss = state_loss + reward_loss + context_loss + self.beta_kl_z * kld_loss
+            vae_loss = state_loss + context_loss + self.beta_kl_z * kld_loss
             
             # 4. backpropargation
             self.encoder_optimizer.zero_grad()
@@ -964,12 +968,14 @@ class Agent(AbstractAgent):
         # update DPMM model at certain interval
         if self.should_use_dpmm:
             if ((local_step+1) == self.dpmm_update_start_step or 
+                # (local_step+1) == (self.dpmm_update_start_step * 5) or
                 (local_step+1) % self.dpmm_update_freq == 0
                 ):
                 print('fit bnp_model at step: {}'.format(global_step+1))
                 
                 # using latent encoding as training objective
                 dpmm_batch = replay_buffer.sample(train_dpmm=True)
+                print(f'batch task obs id:counts {torch.unique(dpmm_batch.task_obs.squeeze(1), return_counts=True)}')
                 dpmm_task_encoding = self.get_task_encoding(
                                     env_index=dpmm_batch.task_obs.squeeze(1),
                                     disable_grad=True,
@@ -982,7 +988,7 @@ class Agent(AbstractAgent):
                                     )
                 mtobs = MTObs(env_obs=dpmm_batch.env_obs, task_obs=dpmm_batch.task_obs, task_info=dpmm_task_info)
                 with torch.no_grad():
-                    dpmm_latent_variable, _,_,_ =self.encode(mtobs=mtobs)
+                    dpmm_latent_variable, _,_,_ =self.encode(mtobs=mtobs, detach_encoder=True)
                 self.bnp_model.fit(dpmm_latent_variable)
                 
                 # self.bnp_model.plot_clusters(dpmm_latent_variable, suffix=str(global_step))
@@ -1040,7 +1046,7 @@ class Agent(AbstractAgent):
                 env_name_list.append(get_env_name(task_name_to_idx_map, idx)[0])
             mtobs = MTObs(env_obs=batch.env_obs, task_obs=None, task_info=task_info)
             # get encoding
-            z, _, _, _ = self.encode(mtobs=mtobs)
+            z, _, _, _ = self.encode(mtobs=mtobs, detach_encoder=True)
             
             if self.bnp_model is not None and self.bnp_model.model is not None:
                 self.bnp_model.manage_latent_representation(z=z, 

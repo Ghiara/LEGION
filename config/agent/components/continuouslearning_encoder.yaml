@@ -9,7 +9,7 @@ vae:
   # hidden_dim: 500
   # latent_dim: 10 # latent gaussian encoding dim
   hidden_dim: 400
-  latent_dim: 16
+  latent_dim: 10
   # feature_dim: ${agent.encoder_feature_dim} # 50
   should_reconstruct: False
 

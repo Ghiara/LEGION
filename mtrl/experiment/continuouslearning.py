@@ -481,7 +481,11 @@ class Experiment(experiment.Experiment):
         2023/05/26    --, drawer-open-v2 failed
         2023/05/27    --, drawer-open-v1 partially ok,not stable
         2023/05/28    (0,5) -> first 5 subtasks, old structure unstable
-        2023/06/01    (0,4) -> first 4 subtasks, new structure, reset vae with lr 3e-4
+        2023/06/01    (0,4) -> first 4 subtasks, new structure, reset vae with lr 3e-4 optim error setting invalid
+        2023/06/05    (1,2),(2,3),(3,4) try single env with new structure -> all ok
+        2023/06/05    (0,4) first 4 envs, success but K comp == 1, need to check.
+        2023/06/13    (0-9) 5 clusters
+        2023/06/14    (0-9) varnish reward rebuild
         """
 
         exp_config = self.config.experiment
@@ -497,7 +501,7 @@ class Experiment(experiment.Experiment):
         global_episode = 0
 
         # for subtask in range(self.config.env.num_envs):
-        for subtask in range(0,4):
+        for subtask in range(0, self.config.env.num_envs):
             
             # set up each subtask
             crl_obs = crl_env.reset(subtask)
@@ -544,7 +548,8 @@ class Experiment(experiment.Experiment):
             print(f'reset VAE weights: {is_vae_reset}')
             print(f'reset optimizer: {is_optim_reset}')
             print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
-            print(f'buffer content:{self.replay_buffer.idx}, rehearsal content:{self.replay_buffer.rehearsal_idx}')
+            print(f'buffer content: {self.replay_buffer.idx}')
+            #       rehearsal content:{self.replay_buffer.rehearsal_idx}')
             start_time = time.time()
 
             # start subtask training
