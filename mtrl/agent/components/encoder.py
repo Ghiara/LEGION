@@ -136,11 +136,11 @@ class VAE_Encoder(Encoder):
                                         output_dim=768, # hard code dim, we reconstruct embedding
                                         num_layers=num_layers+1,
                                         output_activation=False)
-        self.decoder_state = self.build_mlp(input_dim=latent_dim + env_obs_shape[0] + 4,
-                                        hidden_dim=hidden_dim,
-                                        output_dim=env_obs_shape[0], # hard code dim, we reconstruct embedding
-                                        num_layers=num_layers+1,
-                                        output_activation=False)
+        # self.decoder_state = self.build_mlp(input_dim=latent_dim + env_obs_shape[0] + 4,
+        #                                 hidden_dim=hidden_dim,
+        #                                 output_dim=env_obs_shape[0], # hard code dim, we reconstruct embedding
+        #                                 num_layers=num_layers+1,
+        #                                 output_activation=False)
         # self.decoder_reward = self.build_mlp(input_dim=latent_dim + env_obs_shape[0] + 4,
         #                                 hidden_dim=hidden_dim,
         #                                 output_dim=1, # hard code dim, we reconstruct embedding
@@ -198,7 +198,7 @@ class VAE_Encoder(Encoder):
         if should_reconst and batch is not None:
             decoder_inputs = torch.cat([batch.env_obs, batch.action, z], dim=-1)
             reconst['context'] = torch.tanh(self.decoder_context(decoder_inputs))
-            reconst['next_obs'] = self.decoder_state(decoder_inputs)
+            # reconst['next_obs'] = self.decoder_state(decoder_inputs)
             # reconst['reward'] = self.decoder_reward(decoder_inputs)
         
         if detach:

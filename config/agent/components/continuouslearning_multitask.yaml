@@ -47,10 +47,10 @@ dpmm_cfg: # dpmm model cfg
     b_startLap: 1
     b_stopLap: 2
     b_Kfresh: 10
-    b_minNumAtomsForNewComp: 16.0
-    b_minNumAtomsForTargetComp: 16.0
-    b_minNumAtomsForRetainComp: 16.0
-    b_minPercChangeInNumAtomsToReactivate: 0.05
+    b_minNumAtomsForNewComp: 10.0
+    b_minNumAtomsForTargetComp: 10.0
+    b_minNumAtomsForRetainComp: 10.0
+    b_minPercChangeInNumAtomsToReactivate: 0.03
     b_debugWriteHTML: 0
   
   merge_kwargs:

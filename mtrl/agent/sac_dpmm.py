@@ -841,13 +841,14 @@ class Agent(AbstractAgent):
 
             # 2. reconstruction loss 
             # reconstruction_loss = self.reconstruction_loss(reconstruction, task_info.encoding)
-            state_loss = torch.mean((batch.next_env_obs - reconst['next_obs']) ** 2, dim=[-2, -1])
+            # state_loss = torch.mean((batch.next_env_obs - reconst['next_obs']) ** 2, dim=[-2, -1])
             # reward_loss = torch.mean((batch.reward - reconst['reward']) ** 2, dim=[-2, -1])
             context_loss = self.reconstruction_loss_context(reconst['context'], mtobs.task_info.encoding)
             # 3. total VAE loss E[ logP(x|z) - beta * KL[q(z)|p(z)] ]
             # vae_loss = reconstruction_loss + self.beta_kl_z * kld_loss
             # vae_loss = state_loss + reward_loss + context_loss + self.beta_kl_z * kld_loss
-            vae_loss = state_loss + context_loss + self.beta_kl_z * kld_loss
+            # vae_loss = state_loss + context_loss + self.beta_kl_z * kld_loss
+            vae_loss = context_loss + self.beta_kl_z * kld_loss
             
             # 4. backpropargation
             self.encoder_optimizer.zero_grad()
