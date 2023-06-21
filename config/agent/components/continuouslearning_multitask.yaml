@@ -12,7 +12,8 @@ task_encoder_cfg: # Metadata context encoder cfg
     pretrained_embedding_cfg:
       should_use: True
       # change the metadata path
-      path_to_load_from: /home/yuan/Desktop/MasterThesis/src/CARE/mtrl/metadata/task_embedding/roberta_small/${env.name}.json
+      path_to_load_from: /home/yuan/Desktop/MasterThesis/src/CARE/mtrl/metadata/task_embedding/roberta_small/metaworld-mt10-v2.json
+      # path_to_load_from: /home/yuan/Desktop/MasterThesis/src/CARE/mtrl/metadata/task_embedding/roberta_small/${env.name}.json
       # path_to_load_from: /private/home/sodhani/projects/mtrl/metadata/task_embedding/roberta_small/${env.name}.json
       ordered_task_list: ${env.ordered_task_list}
     num_embeddings: ${agent.multitask.num_envs}
@@ -38,10 +39,10 @@ dpmm_cfg: # dpmm model cfg
   gamma0: 5.0
   sF: 0.00001 # scale factor of Gaussian covariance
   
-  beta_kl_z: 0.05 # penalty factor of latent space KL divergence loss
-  kl_div_update_freq: 10 # update the encoder kl divergence per ? steps
+  beta_kl_z: 0.001 # penalty factor of latent space KL divergence loss
+  kl_div_update_freq: 50 # update the encoder kl divergence per ? steps
   dpmm_update_start_step: 3000
-  dpmm_update_freq: 15000 # every 100 episodes
+  dpmm_update_freq: 50000 # every 100 episodes
   
   birth_kwargs:
     b_startLap: 1
