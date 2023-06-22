@@ -501,8 +501,8 @@ class Experiment(experiment.Experiment):
         global_episode = 0
 
         # for subtask in range(self.config.env.num_envs):
-        # for subtask in range(0, self.config.env.num_envs):
-        for subtask in range(7, 8):    
+        for subtask in range(0, self.config.env.num_envs):
+        # for subtask in range(7, 8):    
             # set up each subtask
             crl_obs = crl_env.reset(subtask)
             env_indices = crl_obs["task_obs"]
