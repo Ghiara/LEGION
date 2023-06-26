@@ -850,7 +850,6 @@ class Agent(AbstractAgent):
             # vae_loss = state_loss + context_loss + self.beta_kl_z * kld_loss
 
             vae_loss = 0.5 * state_loss + context_loss + self.beta_kl_z * kld_loss
-            # vae_loss = context_loss + self.beta_kl_z * kld_loss
             
             # 4. backpropargation
             self.encoder_optimizer.zero_grad()

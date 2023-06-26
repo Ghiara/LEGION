@@ -74,7 +74,10 @@ class Experiment(experiment.Experiment):
     # from metaworld TODO modify
     def build_envs(self) -> Tuple[EnvsDictType, EnvMetaDataType]:
         
-        benchmark = hydra.utils.instantiate(self.config.env.benchmark)
+        if self.config.env.use_kuka_env is not True:
+            benchmark = hydra.utils.instantiate(self.config.env.benchmark)
+        else:
+            benchmark = hydra.utils.instantiate(self.config.env.kuka_benchmark)
         envs = {}
         
         if self.config.experiment.training_mode in ['multitask']:
@@ -295,6 +298,7 @@ class Experiment(experiment.Experiment):
         # print('agent: log_alpha: ', self.agent.log_alpha)
 
         # vec_env = self.envs["train"]
+        
         # multitask_obs = vec_env.reset()
         # print('task obs: \n', multitask_obs['env_obs'])
         # print('task obs: \n', multitask_obs['task_obs'])
