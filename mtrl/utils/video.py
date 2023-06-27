@@ -5,7 +5,7 @@ import os
 import imageio
 import torchvision.transforms as transforms
 import numpy as np
-from numpngw import write_apng
+# from numpngw import write_apng
 to_pil_image = transforms.ToPILImage()
 
 class VideoRecorder(object):

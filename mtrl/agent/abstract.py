@@ -263,6 +263,56 @@ class Agent(abc.ABC):
                         if os.path.lexists(path_to_del):
                             os.remove(path_to_del)
                             print(f"Deleted {path_to_del}")
+    
+    ########################################
+    ########### save best model ############
+    ########################################
+    def save_best_model(
+        self,
+        # component_or_optimizer_list: Union[
+        #     List[Tuple[ComponentType, str]], List[Tuple[OptimizerType, str]]
+        # ],
+        model_dir: str,
+        # step: int,
+        # retain_last_n: int=1,
+        suffix: str = "",
+    ) -> None:
+        """Save the components and optimizers from the given list.
+
+        Args:
+            component_or_optimizer_list
+                (Union[ List[Tuple[ComponentType, str]], List[Tuple[OptimizerType, str]] ]):
+                list of components and optimizers to save.
+            model_dir (str): directory to save.
+            step (int): step for tracking the training of the agent.
+            retain_last_n (int): number of models to retain.
+            suffix (str, optional): suffix to add at the name of the model before
+                checkpointing. Defaults to "".
+        """
+        model_dir_path = Path(model_dir)
+        component_or_optimizer_list=self.get_component_name_list_for_checkpointing()
+
+        for component_or_optimizer, name in component_or_optimizer_list:
+            if component_or_optimizer is not None:
+                name = name + suffix
+                # path_to_save_at = f"{model_dir}/{name}_{step}.pt"
+                path_to_save_at = f"{model_dir}/{name}_best.pt"
+                if name == "log_alpha":
+                    torch.save(component_or_optimizer, path_to_save_at)
+                else:
+                    torch.save(component_or_optimizer.state_dict(), path_to_save_at)
+                print(f"Saved {path_to_save_at}")
+                # if retain_last_n == -1:
+                #     continue
+                # reverse_sorted_existing_versions = (
+                #     _get_reverse_sorted_existing_versions(model_dir_path, name)
+                # )
+                # if len(reverse_sorted_existing_versions) > retain_last_n:
+                #     # assert len(reverse_sorted_existing_versions) == retain_last_n + 1
+                #     for path_to_del in reverse_sorted_existing_versions[retain_last_n:]:
+                #         if os.path.lexists(path_to_del):
+                #             os.remove(path_to_del)
+                #             print(f"Deleted {path_to_del}")
 
     def save_metadata(self, model_dir: str, step: int) -> None:
         """Save the metadata.

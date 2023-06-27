@@ -35,6 +35,7 @@ class Experiment(experiment.Experiment):
         }
         #################################################################
         if self.config.experiment.training_mode not in ['multitask']:
+            self.best_crl_success_rate = 0.0
             self.crl_metrics_dir = utils.make_dir(
             os.path.join(self.config.setup.save_dir, "crl_metrics")
             )
@@ -253,6 +254,16 @@ class Experiment(experiment.Experiment):
                 if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
                     if record_crl_metrics:
                         self.crl_metrics.add(reward=subtask_reward, success_rate=subtask_success)
+                    
+                    #############################################
+                    ########## check & save best model ##########
+                    #############################################
+                    if (success[start_index : start_index + offset * num_envs].sum() 
+                        / (num_eval_episodes*num_envs) > self.best_crl_success_rate):
+                        self.agent.save_best_model(
+                            self.model_dir,
+                        )
+                        self.best_crl_success_rate = success[start_index : start_index + offset * num_envs].sum() / (num_eval_episodes*num_envs)
                 ###############################################################################
             start_index += offset * num_envs
 
@@ -334,22 +345,25 @@ class Experiment(experiment.Experiment):
         # reset envs
         multitask_obs = vec_env.reset()
         env_indices = multitask_obs["task_obs"]
-
         train_mode = ["train" for _ in range(vec_env.num_envs)]
         
-        # train loop
+        # counter for saving best model
+        best_success_rate = 0.0
+        ##############
+        # train loop #
+        ##############
         for step in range(self.start_step, exp_config.num_train_steps):
             
             # evaluate agent periodically
             if step % exp_config.eval_freq == 0:
                 self.evaluate_vec_env_of_tasks(vec_env=self.envs["eval"], 
                                                 step=step, episode=episode)
-                
+                # save model
                 if exp_config.save.model:
                     self.agent.save(
                         self.model_dir,
                         step=step,
-                        retain_last_n=exp_config.save.model.retain_last_n,
+                        retain_last_n=exp_config.save.model.retain_last_n, # 1, last 1
                     )
                 if exp_config.save.buffer.should_save:
                     self.replay_buffer.save(
@@ -370,6 +384,16 @@ class Experiment(experiment.Experiment):
                                 step,
                             )
                         self.logger.log("train/success", success.mean(), step)
+
+                        #############################################
+                        ########## check & save best model ##########
+                        #############################################
+                        if success.mean() > best_success_rate:
+                            self.agent.save_best_model(
+                                self.model_dir,
+                            )
+                            best_success_rate = success.mean()
+
                     for index, env_index in enumerate(env_indices):
                         self.logger.log(
                             f"train/episode_reward_env_index_{index}",
