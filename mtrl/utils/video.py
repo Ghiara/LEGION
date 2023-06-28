@@ -25,30 +25,28 @@ class VideoRecorder(object):
         self.delay=delay
         self.frames = []
 
-    def init(self, enabled=True):
+    def reset(self):
         """Initialize the recorder.
 
         Args:
             enabled (bool, optional): should enable the recorder or not. Defaults to True.
         """
         self.frames = []
-        self.enabled = self.dir_name is not None and enabled
 
-    def record(self, frame, env=None):
+    def record(self, frame):
         """Record the frames.
 
         Args:
             env ([type]): environment to record the frames.
         """
-        if self.enabled:
-            if frame is None:
-                assert env is not None
-                frame = env.render(
-                    mode="rgb_array",
-                    height=self.height,
-                    width=self.width,
-                )
-            self.frames.append(frame)
+        # if frame is None:
+        #     assert env is not None
+        #     frame = env.render(
+        #         mode="rgb_array",
+        #         height=self.height,
+        #         width=self.width,
+        #     )
+        self.frames.append(frame)
 
     def save(self, file_name):
         """Save the frames as video to `self.dir_name` in a file named `file_name`, with "*.png" format.
@@ -56,9 +54,9 @@ class VideoRecorder(object):
         Args:
             file_name ([type]): name of the file to store the video frames.
         """
-        if self.enabled:
             # path = os.path.join(self.dir_name, file_name)
             # write_apng('{}/{}.png'.format(self.dir_name, file_name),self.frames, delay=50)
             # write_apng(path, self.frames, delay=50)
-            imgs = [np.array(to_pil_image(img)) for img in self.frames]
-            imageio.mimsave(self.dir_name+'/{}.gif'.format(file_name), imgs)
+        imgs = [np.array(to_pil_image(img)) for img in self.frames]
+        imageio.mimsave(self.dir_name+f'/{file_name}.gif', imgs)
+

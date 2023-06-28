@@ -35,6 +35,7 @@ class Experiment(experiment.Experiment):
         }
         # save for best model with hightest success rate
         self.best_success_rate = 0.0
+        self.video_save_count = 0
         #################################################################
         if self.config.experiment.training_mode not in ['multitask']:
             self.crl_metrics_dir = utils.make_dir(
@@ -273,6 +274,10 @@ class Experiment(experiment.Experiment):
                 self.model_dir,
                 str(self.best_success_rate),
             )
+            if self.config.experiment.save_video and self.best_success_rate >= 0.95 and self.video_save_count < 1:
+                print('save best video records.')
+                self.record_videos()
+                self.video_save_count += 1
 
         if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
             if record_crl_metrics:
@@ -813,53 +818,75 @@ class Experiment(experiment.Experiment):
             multitask_obs = next_multitask_obs
             episode_step += 1
 
-    def record_videos(self):
-            """
-            # TODO modified to multiple Video recoder in a list
-            Record videos of all envs, each env performs one episodes.
-            """
-            agent = self.agent
-            self.task_obs = torch.arange(len(self.list_envs))
-            assert self.env_id_to_task_map_recording is not None
-            env_names =  list(self.env_id_to_task_map_recording.keys())
-            assert len(env_names)==len(self.list_envs)
+    def record_videos(self, num_eps_per_task_to_record=3):
+        """
+        # TODO modified to multiple Video recoder in a list
+        Record videos of all envs, each env performs one episodes.
+        """
+        agent = self.agent
+        num_record = num_eps_per_task_to_record
+        self.task_obs = torch.arange(len(self.list_envs))
+        assert self.env_id_to_task_map_recording is not None
+        env_names =  list(self.env_id_to_task_map_recording.keys())
+        assert len(env_names)==len(self.list_envs)
+        
+        for env_idx in range(len(env_names)):
+            # run for all envs
+            print(f'start recording env {env_names[env_idx]} ...')
+            # reset
+            self.video.reset()
+            episode_step = 0
             
-            for env_idx in range(len(env_names)):
-                # run for all envs
-                print('start recording env {} ...'.format(env_names[env_idx]))
-                self.video.init()
-                episode_step = 0
+            env_obs = []
+            success = 0.0
+            # for i in range(len(env_names)):
+            #     obs = self.list_envs[i].reset()  # (num_envs, 9, 84, 84)
+            #     env_obs.append(obs)
+            # multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": self.task_obs}
+
+            obs = self.list_envs[env_idx].reset()
+            env_obs.append(obs)
+            multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": torch.tensor([env_idx])}
+            
+
+            for episode_step in range(self.max_episode_steps * num_record):
+
+                # record for env_idx env
+                self.video.record(frame=self.list_envs[env_idx].render('rgb_array', 400, 400))
+                
+                # agent select action
+                with agent_utils.eval_mode(agent):
+                    action = agent.select_action(
+                        multitask_obs=multitask_obs, modes=["eval"]
+                    )
+                
+                # interactive with envs get new obs
                 env_obs = []
-                success = 0.0
-                
-                for i in range(len(env_names)):
-                    obs = self.list_envs[i].reset()  # (num_envs, 9, 84, 84)
-                    env_obs.append(obs)
-                multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": self.task_obs}
-                
+                # for i in range(len(env_names)):
+                #     obs, _, _, info = self.list_envs[i].step(action[i])
+                #     env_obs.append(obs)
+                #     if i == env_idx:
+                #         success += info['success']
+                obs,reward,done,info = self.list_envs[env_idx].step(action[0])
+                if (episode_step+1) % self.max_episode_steps == 0:
+                    obs = self.list_envs[env_idx].reset()
+                env_obs.append(obs)
+                success += info['success']
 
-                while episode_step < self.max_episode_steps:
-                    # record for env_idx env
-                    self.video.record(frame=None, env=self.list_envs[env_idx])
-                    
-                    # agent select action
-                    with agent_utils.eval_mode(agent):
-                        action = agent.select_action(
-                            multitask_obs=multitask_obs, modes=["eval"]
-                        )
-                    
-                    # interactive with envs get new obs
-                    env_obs = []
-                    for i in range(len(env_names)):
-                        obs, reward, done, info = self.list_envs[i].step(action[i])
-                        env_obs.append(obs)
-                        if i == env_idx:
-                            success += info['success']
-                    multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": self.task_obs}
-                    episode_step += 1
+                multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": torch.tensor([env_idx])}
+                episode_step += 1
 
-                success = float(success > 0)
-                self.video.save(file_name='{}_success_{}'.format(env_names[env_idx], success))
+                # reset envs if reach max path length
+                # if (episode_step+1) % self.max_episode_steps == 0:
+                #     env_obs = []
+                #     success = 0.0
+                #     for i in range(len(env_names)):
+                #         obs = self.list_envs[i].reset()
+                #         env_obs.append(obs)
+                #     multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": self.task_obs}
+
+            success = float(success > 0)
+            self.video.save(file_name='{}_success_{}'.format(env_names[env_idx], success))
 
     def collect_eval_transitions_for_final_evaluation(self):
         '''
