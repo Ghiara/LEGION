@@ -33,9 +33,10 @@ class Experiment(experiment.Experiment):
         self.metrics_to_track = {
             x[0] for x in self.config.metrics["train"] if not x[0].endswith("_")
         }
+        # save for best model with hightest success rate
+        self.best_success_rate = 0.0
         #################################################################
         if self.config.experiment.training_mode not in ['multitask']:
-            self.best_crl_success_rate = 0.0
             self.crl_metrics_dir = utils.make_dir(
             os.path.join(self.config.setup.save_dir, "crl_metrics")
             )
@@ -255,20 +256,24 @@ class Experiment(experiment.Experiment):
                     if record_crl_metrics:
                         self.crl_metrics.add(reward=subtask_reward, success_rate=subtask_success)
                     
-                    #############################################
-                    ########## check & save best model ##########
-                    #############################################
-                    if (success[start_index : start_index + offset * num_envs].sum() 
-                        / (num_eval_episodes*num_envs) > self.best_crl_success_rate):
-                        self.agent.save_best_model(
-                            self.model_dir,
-                        )
-                        self.best_crl_success_rate = success[start_index : start_index + offset * num_envs].sum() / (num_eval_episodes*num_envs)
                 ###############################################################################
             start_index += offset * num_envs
-
         self.logger.dump(step)
+
+
+
         #######################################################################
+        # check & save best model
+        if (success[start_index : start_index + offset * num_envs].sum() 
+            / (num_eval_episodes*num_envs) > self.best_success_rate):
+            
+            self.best_success_rate = success[start_index : start_index + offset * num_envs].sum() / (num_eval_episodes*num_envs)
+            
+            self.agent.save_best_model(
+                self.model_dir,
+                str(self.best_success_rate),
+            )
+
         if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
             if record_crl_metrics:
                 self.crl_metrics.update()
@@ -385,14 +390,14 @@ class Experiment(experiment.Experiment):
                             )
                         self.logger.log("train/success", success.mean(), step)
 
-                        #############################################
-                        ########## check & save best model ##########
-                        #############################################
-                        if success.mean() > best_success_rate:
-                            self.agent.save_best_model(
-                                self.model_dir,
-                            )
-                            best_success_rate = success.mean()
+                        # #############################################
+                        # ########## check & save best model ##########
+                        # #############################################
+                        # if success.mean() > best_success_rate:
+                        #     self.agent.save_best_model(
+                        #         self.model_dir,
+                        #     )
+                        #     best_success_rate = success.mean()
 
                     for index, env_index in enumerate(env_indices):
                         self.logger.log(
