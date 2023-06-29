@@ -13,7 +13,7 @@ training_mode: multitask          # 3 types: multitask, crl_queue, crl_expand
 # following setup only used in CRL setting
 should_reset_replay_buffer: True  # reset replay buffer when every subtask changes
 should_reset_optimizer: True      # reset critic optimizer when every subtask changes
-should_reset_critics: False        # reset critics weights when every subtask changes
+should_reset_critics: False       # reset critics weights when every subtask changes
 should_reset_vae: False           # reset VAE part before every subtask training
 eval_latent_representation: True  # save latent encoding as clustering
 num_save: 5                       # number of saved batchs

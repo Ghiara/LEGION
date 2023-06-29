@@ -218,6 +218,20 @@ class Experiment(experiment.Experiment):
                 success[start_index : start_index + offset * num_envs].sum() / (num_eval_episodes*num_envs),
                 step,
             )
+
+            # check & save best model & showcase videos (when avg success > 0.95, record 1 time)
+            if (success[start_index : start_index + offset * num_envs].sum() / (num_eval_episodes*num_envs) > self.best_success_rate):
+            
+                self.best_success_rate = success[start_index : start_index + offset * num_envs].sum() / (num_eval_episodes*num_envs)
+                
+                self.agent.save_best_model(
+                    self.model_dir,
+                    str(self.best_success_rate),
+                )
+                if self.config.experiment.save_video and self.best_success_rate >= 0.95 and self.video_save_count < 1:
+                    print('save best video records.')
+                    self.record_videos(step=step)
+                    self.video_save_count += 1
             
             # every env reward & success rate, num of each env = config.experiment.num_eval_episodes
             for _current_env_index, _current_env_id in enumerate(
@@ -255,8 +269,7 @@ class Experiment(experiment.Experiment):
                 ###############################################################################
                 if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
                     if record_crl_metrics:
-                        self.crl_metrics.add(reward=subtask_reward, success_rate=subtask_success)
-                    
+                        self.crl_metrics.add(reward=subtask_reward, success_rate=subtask_success)  
                 ###############################################################################
             start_index += offset * num_envs
         self.logger.dump(step)
@@ -264,21 +277,6 @@ class Experiment(experiment.Experiment):
 
 
         #######################################################################
-        # check & save best model
-        if (success[start_index : start_index + offset * num_envs].sum() 
-            / (num_eval_episodes*num_envs) > self.best_success_rate):
-            
-            self.best_success_rate = success[start_index : start_index + offset * num_envs].sum() / (num_eval_episodes*num_envs)
-            
-            self.agent.save_best_model(
-                self.model_dir,
-                str(self.best_success_rate),
-            )
-            if self.config.experiment.save_video and self.best_success_rate >= 0.95 and self.video_save_count < 1:
-                print('save best video records.')
-                self.record_videos()
-                self.video_save_count += 1
-
         if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
             if record_crl_metrics:
                 self.crl_metrics.update()
@@ -334,9 +332,13 @@ class Experiment(experiment.Experiment):
             if e.errno == errno.EPIPE:
                 pass
 
+
+
+
     def run_multitask(self) -> None:
-        
         """Run the experiment under multitask setting."""
+
+
         exp_config = self.config.experiment
         vec_env = self.envs["train"]
         
@@ -394,15 +396,6 @@ class Experiment(experiment.Experiment):
                                 step,
                             )
                         self.logger.log("train/success", success.mean(), step)
-
-                        # #############################################
-                        # ########## check & save best model ##########
-                        # #############################################
-                        # if success.mean() > best_success_rate:
-                        #     self.agent.save_best_model(
-                        #         self.model_dir,
-                        #     )
-                        #     best_success_rate = success.mean()
 
                     for index, env_index in enumerate(env_indices):
                         self.logger.log(
@@ -498,7 +491,7 @@ class Experiment(experiment.Experiment):
 
         if self.config.experiment.save_video:
             print('start recording videos ...')
-            self.record_videos()
+            self.record_videos(step=step)
             print('video recording finished. Check folder:{}'.format(self.video.dir_name))
         ####################################################################
         
@@ -551,10 +544,10 @@ class Experiment(experiment.Experiment):
             if exp_config.should_reset_replay_buffer:
                 self.replay_buffer.reset()
             # setup rehearsal buffer
-            if self.config.replay_buffer.rehearsal.should_use:
-                if subtask > 0:
-                    # only up to second phase we activate the rehearsal strategy
-                    self.replay_buffer.rehearsal_activate = True
+            # if self.config.replay_buffer.rehearsal.should_use:
+            #     if subtask > 0:
+            #         # only up to second phase we activate the rehearsal strategy
+            #         self.replay_buffer.rehearsal_activate = True
             # reset critics & target critics
             if exp_config.should_reset_critics and subtask>0:
                 is_critics_reset = self.agent.reset_critics()
@@ -585,7 +578,7 @@ class Experiment(experiment.Experiment):
             print(f'reset SAC critics: {is_critics_reset}')
             print(f'reset VAE weights: {is_vae_reset}')
             print(f'reset optimizer: {is_optim_reset}')
-            print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
+            # print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
             print(f'buffer content: {self.replay_buffer.idx}')
             #       rehearsal content:{self.replay_buffer.rehearsal_idx}')
             start_time = time.time()
@@ -721,12 +714,14 @@ class Experiment(experiment.Experiment):
                 crl_obs = next_crl_obs
                 episode_step += 1
                 global_step += 1
+            #######################################################
             ############## end of subtask training ################
+            #######################################################
             
-            if self.config.replay_buffer.rehearsal.should_use:
-                print('collect rehearsal transitions...')
-                self.replay_buffer.collect_rehearsal_transitions(
-                    self.config.replay_buffer.rehearsal.subtask_rehearsal_size)
+            # if self.config.replay_buffer.rehearsal.should_use:
+            #     print('collect rehearsal transitions...')
+            #     self.replay_buffer.collect_rehearsal_transitions(
+            #         self.config.replay_buffer.rehearsal.subtask_rehearsal_size)
 
             # final evaluation of each subtask phase
             print('subtask final evaluation')
@@ -739,8 +734,8 @@ class Experiment(experiment.Experiment):
                 self.agent.save(
                     self.model_dir,
                     step=subtask,
-                    # retain_last_n=exp_config.save.model.retain_last_n,
-                    retain_last_n=-1,
+                    retain_last_n=exp_config.save.model.retain_last_n,
+                    # retain_last_n=2,
                 )
             if exp_config.save.buffer.should_save:
                 self.replay_buffer.save(
@@ -748,7 +743,9 @@ class Experiment(experiment.Experiment):
                     size_per_chunk=exp_config.save.buffer.size_per_chunk,
                     num_samples_to_save=exp_config.save.buffer.num_samples_to_save,
                 )
+        ####################################################
         ############## end of total training ###############
+        ####################################################
         
         # ####################################################################
         # if self.config.experiment.eval_latent_representation:
@@ -766,7 +763,7 @@ class Experiment(experiment.Experiment):
 
         if self.config.experiment.save_video:
             print('start recording videos ...')
-            self.record_videos()
+            self.record_videos(step=step)
             print('video recording finished. Check folder:{}'.format(self.video.dir_name))
         ####################################################################
         self.replay_buffer.delete_from_filesystem(self.buffer_dir)
@@ -818,7 +815,7 @@ class Experiment(experiment.Experiment):
             multitask_obs = next_multitask_obs
             episode_step += 1
 
-    def record_videos(self, num_eps_per_task_to_record=3):
+    def record_videos(self, step, num_eps_per_task_to_record=3):
         """
         # TODO modified to multiple Video recoder in a list
         Record videos of all envs, each env performs one episodes.
@@ -835,24 +832,20 @@ class Experiment(experiment.Experiment):
             print(f'start recording env {env_names[env_idx]} ...')
             # reset
             self.video.reset()
-            episode_step = 0
-            
+            episode_step = 0           
             env_obs = []
             success = 0.0
-            # for i in range(len(env_names)):
-            #     obs = self.list_envs[i].reset()  # (num_envs, 9, 84, 84)
-            #     env_obs.append(obs)
-            # multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": self.task_obs}
 
             obs = self.list_envs[env_idx].reset()
             env_obs.append(obs)
             multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": torch.tensor([env_idx])}
             
+            self.video.record(frame=self.list_envs[env_idx].render('rgb_array'))
 
             for episode_step in range(self.max_episode_steps * num_record):
 
                 # record for env_idx env
-                self.video.record(frame=self.list_envs[env_idx].render('rgb_array', 400, 400))
+                self.video.record(frame=self.list_envs[env_idx].render('rgb_array'))
                 
                 # agent select action
                 with agent_utils.eval_mode(agent):
@@ -862,31 +855,19 @@ class Experiment(experiment.Experiment):
                 
                 # interactive with envs get new obs
                 env_obs = []
-                # for i in range(len(env_names)):
-                #     obs, _, _, info = self.list_envs[i].step(action[i])
-                #     env_obs.append(obs)
-                #     if i == env_idx:
-                #         success += info['success']
                 obs,reward,done,info = self.list_envs[env_idx].step(action[0])
+                
                 if (episode_step+1) % self.max_episode_steps == 0:
                     obs = self.list_envs[env_idx].reset()
+                    self.video.record(frame=self.list_envs[env_idx].render('rgb_array'))
                 env_obs.append(obs)
                 success += info['success']
 
                 multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": torch.tensor([env_idx])}
                 episode_step += 1
 
-                # reset envs if reach max path length
-                # if (episode_step+1) % self.max_episode_steps == 0:
-                #     env_obs = []
-                #     success = 0.0
-                #     for i in range(len(env_names)):
-                #         obs = self.list_envs[i].reset()
-                #         env_obs.append(obs)
-                #     multitask_obs = {"env_obs": torch.tensor(env_obs), "task_obs": self.task_obs}
-
             success = float(success > 0)
-            self.video.save(file_name='{}_success_{}'.format(env_names[env_idx], success))
+            self.video.save(file_name=f'{env_names[env_idx]}_success_{success}_step_{step}')
 
     def collect_eval_transitions_for_final_evaluation(self):
         '''

@@ -24,14 +24,13 @@ from mtrl.utils.types import ConfigType, ModelType, ParameterType, TensorType
 import bnpy
 from mtrl.agent.components.bnp_model import BNPModel
 
-# TODO: add VAE & DP Mixture
 
 class Agent(AbstractAgent):
-    """VAE + DPMM + SAC algorithm.
+    """LEGION algorithm.
     Interactive with Experiment(environment) through act() & update() API
     sample_action(): get observation of env, sample action (pi) using current policy (train mode)
-    select_action(): get observation of env, select action (mu) using current policy (eval mode)
-    update(): get batch from replaybuffer, update critic, actor, alpha, encoder parameters etc.
+    select_action(): get observation of env, select best action (mu) using current policy (eval mode)
+    update(): get batch from replay buffer, update critic, actor, alpha, encoder parameters etc.
     """
 
     def __init__(
@@ -459,21 +458,21 @@ class Agent(AbstractAgent):
         '''
         return self.act(multitask_obs=multitask_obs, modes=modes, sample=True)
 
-    def get_last_shared_layers(self, component_name: str) -> Optional[List[ModelType]]:  # type: ignore[return]
-
-        if component_name in [
-            "actor",
-            "critic",
-            "transition_model",
-            "reward_decoder",
-            "decoder",
-        ]:
-            return self._components[component_name].get_last_shared_layers()  # type: ignore[operator]
-            # The mypy error is because self._components can contain a tensor as well.
-        if component_name in ["log_alpha", "encoder", "task_encoder"]:
-            return None
-        if component_name not in self._components:
-            raise ValueError(f"""Component named {component_name} does not exist""")
+    # def get_last_shared_layers(self, component_name: str) -> Optional[List[ModelType]]:  # type: ignore[return]
+    #     'Not used in Legion'
+    #     if component_name in [
+    #         "actor",
+    #         "critic",
+    #         "transition_model",
+    #         "reward_decoder",
+    #         "decoder",
+    #     ]:
+    #         return self._components[component_name].get_last_shared_layers()  # type: ignore[operator]
+    #         # The mypy error is because self._components can contain a tensor as well.
+    #     if component_name in ["log_alpha", "encoder", "task_encoder"]:
+    #         return None
+    #     if component_name not in self._components:
+    #         raise ValueError(f"""Component named {component_name} does not exist""")
 
     def _compute_gradient(
         self,
@@ -662,11 +661,8 @@ class Agent(AbstractAgent):
 
         logger.log("train/critic_loss", loss_to_log, step, tb_log=kwargs['tb_log'])
 
-        # if loss_to_log > 1e8:
-        #     warnings.warn("critic_loss = {} is too high. Stopping training.".format(loss_to_log))
-        #     # raise RuntimeError(
-        #     #     f"critic_loss = {loss_to_log} is too high. Stopping training."
-        #     # )
+        if loss_to_log > 1e8:
+            warnings.warn("critic_loss = {} is too high. Stopping training.".format(loss_to_log))
         
         component_names = ["critic"]
         parameters: List[ParameterType] = []
