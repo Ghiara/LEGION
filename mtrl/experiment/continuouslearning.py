@@ -734,8 +734,8 @@ class Experiment(experiment.Experiment):
                 self.agent.save(
                     self.model_dir,
                     step=subtask,
-                    retain_last_n=exp_config.save.model.retain_last_n,
-                    # retain_last_n=2,
+                    # retain_last_n=exp_config.save.model.retain_last_n,
+                    retain_last_n=-1,
                 )
             if exp_config.save.buffer.should_save:
                 self.replay_buffer.save(

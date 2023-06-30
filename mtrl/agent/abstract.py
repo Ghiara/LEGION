@@ -300,7 +300,7 @@ class Agent(abc.ABC):
                 if name == "log_alpha":
                     torch.save(component_or_optimizer, path_to_save_at)
                 else:
-                    torch.save(component_or_optimizer.state_dict(), path_to_save_at)
+                    torch.save(component_or_optimizer, path_to_save_at)
                 print(f"Saved {path_to_save_at}")
                 # if retain_last_n == -1:
                 #     continue
