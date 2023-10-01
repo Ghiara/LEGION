@@ -277,11 +277,11 @@ class CRL_Metrics():
     
     def to_csv(self):
         metrics = np.array(self.success).T # axis 0 eval success rate after every queue phase, axis 1 queue of env
-        names = ['reach-v1','push-v1',
-                'pick-place-v1','door-open-v1', 
-                'drawer-open-v1','drawer-close-v1', 
-                'button-press-topdpwn-v1','peg-insert-side-v1',
-                'window-open-v1','window-close-v1']
+        names = ['reach','push',
+                'pick-place','door-open', 
+                'faucet-open','drawer-close', 
+                'button-press-topdpwn','peg-unplug-side',
+                'window-open','window-close']
         columns = names[:metrics.shape[1]]
         metrics = pd.DataFrame(metrics, columns=columns)
         metrics.to_csv(self.save_dir+'/eval_success.csv')

@@ -2,7 +2,7 @@
 
 """This is the main entry point for the code."""
 import os 
-os.environ['NUMEXPR_MAX_THREADS'] = '10'
+# os.environ['NUMEXPR_MAX_THREADS'] = '8'
 
 import hydra
 

@@ -98,7 +98,10 @@ class Experiment(experiment.Experiment):
         else: # CRL
             mode = "train"
             env_list, env_id_to_task_map = env_builder.build_metaworld_env_list(
-                config=self.config, benchmark=benchmark, mode=mode, env_id_to_task_map=None
+                config=self.config, 
+                benchmark=benchmark, 
+                mode=mode, 
+                env_id_to_task_map=None
             )
             envs[mode] = CRL_Env(env_list=env_list, 
                                  config=self.config, 
@@ -321,7 +324,23 @@ class Experiment(experiment.Experiment):
         # multitask_obs = vec_env.reset()
         # print('task obs: \n', multitask_obs['env_obs'])
         # print('task obs: \n', multitask_obs['task_obs'])
-        
+        # env = self.envs['train'].env_list[0]
+        # obs = env.reset()
+        # env.render()
+        # step = 0
+        # # for i in range(100):
+        # while True:
+
+        #     action = env.action_space.sample()
+        #     obs, reward, done, info = env.step(action)
+        #     env.render()
+        #     step += 1
+        #     if step % env.max_path_length == 0:
+        #         obs = env.reset()
+        #         env.render()
+            
+        #     if step >=5000:
+        #         break
 
         try:
             if self.config.experiment.training_mode in ['multitask']:
@@ -503,20 +522,7 @@ class Experiment(experiment.Experiment):
     ########### Run continual learning ###########
     ##############################################
     def run_crl(self):
-
         """Run the experiment under crl setting.
-        2023/05/15-16 test single env, push-v1 & dooropen-v1 - push-v1 not good, door-v1 ok
-        2023/05/22    test single env, push-v2 & dooropen-v2 - push-v2 ok, door-v2 failed
-        2023/05/25    test single env, window-open-v2, pick-place-v2 - window ok pick failed
-        2023/05/26    --, pick-place-v1 ok
-        2023/05/26    --, drawer-open-v2 failed
-        2023/05/27    --, drawer-open-v1 partially ok,not stable
-        2023/05/28    (0,5) -> first 5 subtasks, old structure unstable
-        2023/06/01    (0,4) -> first 4 subtasks, new structure, reset vae with lr 3e-4 optim error setting invalid
-        2023/06/05    (1,2),(2,3),(3,4) try single env with new structure -> all ok
-        2023/06/05    (0,4) first 4 envs, success but K comp == 1, need to check.
-        2023/06/13    (0-9) 5 clusters
-        2023/06/14    (0-9) varnish reward rebuild
         """
 
         exp_config = self.config.experiment
@@ -533,7 +539,7 @@ class Experiment(experiment.Experiment):
 
         # for subtask in range(self.config.env.num_envs):
         for subtask in range(0, self.config.env.num_envs):
-        # for subtask in range(7, 8):    
+ 
             # set up each subtask
             crl_obs = crl_env.reset(subtask)
             env_indices = crl_obs["task_obs"]
@@ -541,8 +547,8 @@ class Experiment(experiment.Experiment):
             if exp_config.training_mode in ['crl_queue']:
                 self.action_space = crl_env.env_list[subtask].action_space
             # reset replay buffer
-            if exp_config.should_reset_replay_buffer:
-                self.replay_buffer.reset()
+            # if exp_config.should_reset_replay_buffer:
+            #     self.replay_buffer.reset()
             # setup rehearsal buffer
             # if self.config.replay_buffer.rehearsal.should_use:
             #     if subtask > 0:
@@ -763,11 +769,11 @@ class Experiment(experiment.Experiment):
 
         if self.config.experiment.save_video:
             print('start recording videos ...')
-            self.record_videos(step=step)
+            self.record_videos(step=global_step)
             print('video recording finished. Check folder:{}'.format(self.video.dir_name))
         ####################################################################
         self.replay_buffer.delete_from_filesystem(self.buffer_dir)
-        self.close_envs()
+        # self.close_envs()
         self.logger.tb_writer.close()
         self.crl_metrics.to_csv()
         print('====== Training finished ======')

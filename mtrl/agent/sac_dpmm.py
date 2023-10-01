@@ -588,11 +588,15 @@ class Agent(AbstractAgent):
         assert not torch.isnan(latent_obs).any(), latent_obs
         
         
-        if self.bnp_model.model is None:
+        if self.should_use_dpmm == False:
             kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), 
                                                    dim = 1), dim = 0).to(self.device)
         
         else:
+            if self.bnp_model.model is None:
+                kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var_q - mu_q ** 2 - log_var_q.exp(), 
+                                                   dim = 1), dim = 0).to(self.device)
+                return kld_loss
             # get probability assignment of each z to each component & parameters of each component distribution
             prob_comps, comps = self.bnp_model.cluster_assignments(latent_obs)
             var_q = torch.exp(0.5 * log_var_q)**2
@@ -661,8 +665,8 @@ class Agent(AbstractAgent):
 
         logger.log("train/critic_loss", loss_to_log, step, tb_log=kwargs['tb_log'])
 
-        if loss_to_log > 1e8:
-            warnings.warn("critic_loss = {} is too high. Stopping training.".format(loss_to_log))
+        # if loss_to_log > 1e9:
+        #     warnings.warn("critic_loss = {} is too high. Stopping training.".format(loss_to_log))
         
         component_names = ["critic"]
         parameters: List[ParameterType] = []
@@ -857,7 +861,7 @@ class Agent(AbstractAgent):
 
         return latent_variable
 
-    # TODO add VAE, dpmm update
+    
     def update(
         self,
         replay_buffer: ReplayBuffer,
@@ -1004,6 +1008,19 @@ class Agent(AbstractAgent):
                                                 task_name_to_idx_map=kwargs['task_name_to_idx'],
                                                 num_save=1,
                                                 prefix=prefix)
+        else:
+            if (local_step+1) % 200000 == 0:
+                print('save latent variables at step: {}'.format(global_step+1))
+                if kwargs['task_name_to_idx'] is not None:
+                    try:
+                        prefix = 'step{}_subtask{}'.format(global_step+1, kwargs["subtask"])
+                    except:
+                        prefix = 'step{}'.format(global_step+1)
+                    
+                    self.evaluate_latent_clustering(replay_buffer=replay_buffer, 
+                                                task_name_to_idx_map=kwargs['task_name_to_idx'],
+                                                num_save=1,
+                                                prefix=prefix)
 
         ############################################################################
         return batch.buffer_index
@@ -1046,7 +1063,9 @@ class Agent(AbstractAgent):
             # get encoding
             z, _, _, _ = self.encode(mtobs=mtobs, detach_encoder=True)
             
-            if self.bnp_model is not None and self.bnp_model.model is not None:
+            if (self.bnp_model is not None and 
+                self.bnp_model.model is not None and 
+                self.should_use_dpmm):
                 self.bnp_model.manage_latent_representation(z=z, 
                                                             env_idx=batch.task_obs, 
                                                             env_name_list=env_name_list, 
@@ -1060,7 +1079,8 @@ class Agent(AbstractAgent):
                     env_idx = batch.task_obs.detach().cpu().numpy()
                 )
                 
-                np.savez(self.multitask_cfg.dpmm_cfg.save_dir+'/latent_ohne_DPMixture_{}.npz'.format(i), **data)
+                np.savez(self.multitask_cfg.dpmm_cfg.save_dir+'/latent_without_DPMM_{}.npz'.format(prefix), **data)
+
 
     def get_parameters(self, name: str) -> List[torch.nn.parameter.Parameter]:
         """Get parameters corresponding to a given component.

@@ -294,25 +294,16 @@ class Agent(abc.ABC):
 
         for component_or_optimizer, name in component_or_optimizer_list:
             if component_or_optimizer is not None:
-                name = name + suffix
                 # path_to_save_at = f"{model_dir}/{name}_{step}.pt"
-                path_to_save_at = f"{model_dir}/{name}_best.pt"
                 if name == "log_alpha":
+                    name = name + suffix
+                    path_to_save_at = f"{model_dir}/{name}_best.pt"
                     torch.save(component_or_optimizer, path_to_save_at)
                 else:
-                    torch.save(component_or_optimizer, path_to_save_at)
+                    name = name + suffix
+                    path_to_save_at = f"{model_dir}/{name}_best.pt"
+                    torch.save(component_or_optimizer.state_dict(), path_to_save_at)
                 print(f"Saved {path_to_save_at}")
-                # if retain_last_n == -1:
-                #     continue
-                # reverse_sorted_existing_versions = (
-                #     _get_reverse_sorted_existing_versions(model_dir_path, name)
-                # )
-                # if len(reverse_sorted_existing_versions) > retain_last_n:
-                #     # assert len(reverse_sorted_existing_versions) == retain_last_n + 1
-                #     for path_to_del in reverse_sorted_existing_versions[retain_last_n:]:
-                #         if os.path.lexists(path_to_del):
-                #             os.remove(path_to_del)
-                #             print(f"Deleted {path_to_del}")
 
     def save_metadata(self, model_dir: str, step: int) -> None:
         """Save the metadata.

@@ -18,10 +18,9 @@ description:
   push-v1: Push the puck to a goal. Randomize puck and goal positions.
   pick-place-v1: Pick and place a puck to a goal. Randomize puck and goal positions.
   door-open-v1: Open a door with a revolving joint. Randomize door positions.
-  drawer-open-v1: Open a drawer. Randomize drawer positions.
+  faucet-open-v1: Rotate the faucet counter-clockwise. Randomize faucet positions.
   drawer-close-v1: Push and close a drawer. Randomize the drawer positions.
   button-press-topdown-v1: Press a button from the top. Randomize button positions.
-  # peg-insert-side-v1: Insert a peg sideways. Randomize peg and goal positions.
   peg-unplug-side-v1: Unplug a peg sideways. Randomize peg positions.
   window-open-v1: Push and open a window. Randomize window positions.
   window-close-v1: Push and close a window. Randomize window positions.
