@@ -5,25 +5,36 @@
 
 # LEGION: A Language Embedding based Generative Incremental Off-policy Reinforcement Learning Framework with Non-parametric Bayes
 
-Implementation Inherited from [MTRL](https://mtrl.readthedocs.io/en/latest/index.html) library 
 
 ## Contents
 
+1. [Introduction](#Introduction)
 
-1. [Setup](#Setup)
+2. [Setup](#Setup)
 
-2. [Train](#Train)
+3. [Train](#Train)
 
-3. [Usage](#Usage)
+4. [Baseline](#Baseline)
 
-4. [Documentation](#Documentation)
+5. [Acknowledgements](#Acknowledgements)
 
-5. [Contributing to MTRL](#Contributing-to-MTRL)
+## Introduction
 
-6. [Community](#Community)
+Humans can continually accumulate knowledge and develop increasingly complex behaviors and skills throughout their lives, which is a capability known as ``lifelong learning''. 
+Although this lifelong learning capability is considered an essential mechanism that makes up generalized intelligence, recent advancements in artificial intelligence predominantly excel in narrow, specialized domains and generally lack of this lifelong learning capability.
+Our study introduces a robotic lifelong reinforcement learning framework that addresses this gap by incorporating a non-parametric Bayesian model into the knowledge space.
+Additionally, we enhance the agent's semantic understanding of tasks by integrating language embeddings into the framework.
+Our proposed embodied agent can consistently accumulate knowledge from a continuous stream of one-time feeding tasks. 
+Furthermore, our agent can tackle challenging real-world long-horizon tasks by combining and reapplying its acquired knowledge from the original tasks stream.
+Our findings demonstrate that intelligent embodied agents can exhibit a capability for lifelong learning similar to that of human beings.
+The proposed framework advances our understanding of the robotic lifelong learning process and may inspire the development of more broadly applicable intelligence.
 
-7. [Acknowledgements](#Acknowledgements)
-
+### LEGION long horizon task demonstration
+[![Movie1](/imgs/movie_cover.png "Long horzion task demonstration")](https://www.cit.tum.de/cit/startseite/)
+### LEGION Framework for Training
+![train](/imgs/framework_train.png "Framework for Lifelong reinforcement Learning")
+### LEGION Framework for Deployment
+![deployment](/imgs/framework_deployment.png "Deployment")
 
 ## Setup
 
@@ -31,11 +42,11 @@ Implementation Inherited from [MTRL](https://mtrl.readthedocs.io/en/latest/index
 
 * Install dependencies: `pip install -r requirements/dev.txt`
   
-* Install modified Meta-World benchmark `git clone https://github.com/Ghiara/metaworld.git`
+* Install modified KUKA reinforcement learning environments (based on Meta-World) `git clone https://github.com/Ghiara/metaworld.git`
   
 * Install bnpy library `git clone https://github.com/bnpy/bnpy.git` + `cd bnpy/`+ `pip install -e .`
   
-* Note that we use mtenv to manage Meta-World environment, and add slight modification under mtenv/envs/metaworld/env.py, we added following function allowing for output a list of env instances:
+* Note that we use mtenv to manage Meta-World environment, and add slight modification under **mtenv/envs/metaworld/env.py**, we added following function allowing for output a list of env instances:
 ```
 def get_list_of_envs(
     benchmark: Optional[metaworld.Benchmark],
@@ -187,24 +198,19 @@ env.use_kuka_env=True
 ```
 
 
-### Reference:
 
-* [Multi-Task Reinforcement Learning with Context-based Representations](https://arxiv.org/abs/2102.06177)
-    *  We use the `af8417bfc82a3e249b4b02156518d775f29eb289` commit for the MetaWorld environments for our experiments.
-
-
-## Usage
+## Baseline
 
 * MTRL supports 8 different multi-task RL algorithms as described [here](https://mtrl.readthedocs.io/en/latest/pages/tutorials/overview.html).
 
 * MTRL supports multi-task environments using [MTEnv](https://github.com/facebookresearch/mtenv). These environments include [MetaWorld](https://meta-world.github.io/)
 
 
-## Documentation
-
-[https://mtrl.readthedocs.io](https://mtrl.readthedocs.io)
-
 
 ## Acknowledgements
 
 * Project file pre-commit, mypy config, towncrier config, circleci etc are based on same files from [Hydra](https://github.com/facebookresearch/hydra).
+
+* Implementation Inherited from [MTRL](https://mtrl.readthedocs.io/en/latest/index.html) library. 
+
+* Documentation of MTRL repository refer to: [https://mtrl.readthedocs.io](https://mtrl.readthedocs.io).
