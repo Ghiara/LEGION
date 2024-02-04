@@ -42,7 +42,7 @@ The proposed framework advances our understanding of the robotic lifelong learni
 
 * Install dependencies: `pip install -r requirements/dev.txt`
   
-* Install modified KUKA reinforcement learning environments (based on Meta-World) `git clone https://github.com/Ghiara/metaworld.git`
+* Install modified KUKA IIWA R800 reinforcement learning environments (based on Meta-World) `git clone https://github.com/Ghiara/Metaworld-KUKA-IIWA-R800.git`
   
 * Install bnpy library `git clone https://github.com/bnpy/bnpy.git` + `cd bnpy/`+ `pip install -e .`
   
