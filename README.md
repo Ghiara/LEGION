@@ -44,7 +44,7 @@ The proposed framework advances our understanding of the robotic lifelong learni
   
 * Install modified KUKA IIWA R800 reinforcement learning environments (based on Meta-World) `git clone https://github.com/Ghiara/Metaworld-KUKA-IIWA-R800.git`
 
-* Note: mujoco200 with mujoco-py==2.0.2.8 works with this project, you can first manually install the mujoco-py==2.0.2.8 before you install the Metaworld environment.
+* Note: mujoco200 with mujoco-py==2.0.2.8, gym=0.19.0, protobuf==3.20.0, cython<3 works with this project, you can first manually install the denpendices before you install the Metaworld environment.
   
 * Install bnpy library `git clone https://github.com/bnpy/bnpy.git` + `cd bnpy/`+ `pip install -e .`
   
