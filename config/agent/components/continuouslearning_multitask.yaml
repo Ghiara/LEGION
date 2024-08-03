@@ -11,8 +11,10 @@ task_encoder_cfg: # Metadata context encoder cfg
     _target_: mtrl.agent.components.task_encoder.TaskEncoder
     pretrained_embedding_cfg:
       should_use: True
-      # change the metadata path
-      path_to_load_from: /home/yuan/Desktop/projects/legion/LEGION/metadata/task_embedding/roberta_small/metaworld-mt10-v2.json
+      ##########################################################
+      # TODO: change the metadata path before you run the code #
+      ##########################################################
+      path_to_load_from: /your/local/path/to/metadata/task_embedding/roberta_small/metaworld-mt10-v2.json
       ordered_task_list: ${env.ordered_task_list}
     num_embeddings: ${agent.multitask.num_envs}
     embedding_dim: 50

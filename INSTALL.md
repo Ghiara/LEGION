@@ -81,3 +81,5 @@ git clone https://github.com/Ghiara/mtenv.git
 
 cd mtenv && pip install -e . && cd ..
 ```
+
+Before you run the code, change the `task_encoder_cfg.path_to_load_from` in the `config/agent/components/continuouslearning_multitask.yaml` with your local repository path.
