@@ -39,16 +39,36 @@ Here we will introduce how to establish the legion dependencies.
 Open a terminal:
 ```bash
 conda create -n legion python=3.7
-```
-
-### 2. Download and install LEGION dependencies:
-```bash
-(optinal) git clone https://github.com/Ghiara/LEGION.git
-
-cd LEGION
 
 conda activate legion
 
-pip install -r requirements/dev.txt
+pip install mujoco-py==2.0.2.8 cython==0.29.33 protobuf==3.20.0 gym==0.20.0
 ```
 
+### 2. Download and install LEGION dependencies:
+
+Install legion repository dependencies
+
+```bash
+(optinal) git clone https://github.com/Ghiara/LEGION.git
+
+cd LEGION && conda activate legion && pip install -r requirements/dev.txt
+```
+
+Install modified metaworld environments under `source` folder
+
+```bash
+cd source
+
+git clone https://github.com/Ghiara/Metaworld-KUKA-IIWA-R800.git
+
+cd Metaworld-KUKA-IIWA-R800 && pip install -e . && cd ..
+```
+
+Install Bayesian Nonparametric Models library (bnpy) under `source` folder
+
+```bash
+git clone https://github.com/bnpy/bnpy.git
+
+cd bnpy && pip install -e . && cd ..
+```
