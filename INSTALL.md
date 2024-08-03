@@ -72,3 +72,5 @@ git clone https://github.com/bnpy/bnpy.git
 
 cd bnpy && pip install -e . && cd ..
 ```
+
+
