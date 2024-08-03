@@ -74,3 +74,10 @@ cd bnpy && pip install -e . && cd ..
 ```
 
 
+Install `mtenv` modified environment manager
+
+```bash
+git clone https://github.com/Ghiara/mtenv.git
+
+cd mtenv && pip install -e . && cd ..
+```
