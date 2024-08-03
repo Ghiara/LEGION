@@ -16,7 +16,9 @@
 
 4. [Repository Structure](#FileStructure)
 
-5. [Acknowledgements](#Acknowledgements)
+5. [Data Availability](#Data)
+
+6. [Acknowledgements](#Acknowledgements)
 
 ## Introduction
 
@@ -87,6 +89,10 @@ LEGION
     TRAIN_EVAL.md                           -- training and evaluation cli
 ```
 
+
+## Data
+
+The original training and evaluation data that we presented in the paper are avaiable at [Square Ocean](https://codeocean.com/capsule/6151918/tree).
 
 
 ## Acknowledgements
