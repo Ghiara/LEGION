@@ -30,7 +30,7 @@ To install `Mujoco200`, following: https://www.roboti.us/download.html, download
 export  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/your/.mujoco/mujoco200/bin 
 ```
 
-## 2.Installation of LEGION dependencies.
+## 2. Installation of LEGION dependencies.
 
 Here we will introduce how to establish the legion dependencies.
 
@@ -84,7 +84,7 @@ cd mtenv && pip install -e . && cd ..
 
 Before you run the code, change the `task_encoder_cfg.path_to_load_from` in the `config/agent/components/continuouslearning_multitask.yaml` with your local repository path.
 
-## 3 Error catching
+## 3. Error catching
 - TypeError: Descriptors cannot not be created directly. If this call came from a _pb2.py file, your generated code is out of date and must be regenerated with protoc >= 3.19.0.If you cannot immediately regenerate your protos, some other possible workarounds are: 1. Downgrade the protobuf package to 3.20.x or lower.2. Set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python (but this will use pure-Python parsing and will be much slower).
 
 ```bash
