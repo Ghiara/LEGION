@@ -3,7 +3,8 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Zulip Chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://mtenv.zulipchat.com)
 
-# LEGION: A Language Embedding based Generative Incremental Off-policy Reinforcement Learning Framework with Non-parametric Bayes
+# Preserving and Combining Knowledge in Robotic Lifelong Reinforcement Learning
+ LEGION: A Language Embedding based Generative Incremental Off-policy Reinforcement Learning Framework with Non-parametric Bayes
 
 
 ## Contents
@@ -32,11 +33,11 @@ Our findings demonstrate that intelligent embodied agents can exhibit a capabili
 The proposed framework advances our understanding of the robotic lifelong learning process and may inspire the development of more broadly applicable intelligence.
 
 ### LEGION long horizon task demonstration
-[![Movie1](/imgs/movie_cover.png "Long horzion task demonstration")](https://www.cit.tum.de/cit/startseite/)
+[![Movie1](/docs/static/images/movie_cover.png "Long horzion task demonstration")](https://www.cit.tum.de/cit/startseite/)
 ### LEGION Framework for Training
-![train](/imgs/framework_train.png "Framework for Lifelong reinforcement Learning")
+![train](/docs/static/images/framework_train.png "Framework for Lifelong reinforcement Learning")
 ### LEGION Framework for Deployment
-![deployment](/imgs/framework_deployment.png "Deployment")
+![deployment](/docs/static/images/framework_deployment.png "Deployment")
 
 ## Installation
 
@@ -50,12 +51,19 @@ To install the repository, follow the steps below:
 
 ## Train
 
-To reproduce the results we present in the paper, we provide a [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) that record the training cli we ued. To run the code, please follow our guidelines in the [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md).
+To reproduce the results we present in the paper, we provide a [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) that record the training cli we used. To run the code, please follow our guidelines in the [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md).
 
 
 ## FileStructure
 
-Structure of our code is shown as follows:
+In summary, we use `Hydra` to manage the training process. 
+- The configs for all instances can be found under `config` folder. 
+- The agent implementation can be found under `mtrl/agent` folder.
+- The enviroments can be found at `mtrl/env`.
+- The training script is implemented at `mtrl/experiment`.
+
+
+The detailed structure of this project is shown as follows:
 
 ```
 LEGION
