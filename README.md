@@ -44,13 +44,13 @@ To install the repository, follow the steps below:
 
 * Clone this repository: `git clone https://github.com/Ghiara/LEGION.git`.
 
-* Follow the [INSTALL.md](INSTALL.md) to install the repository and dependencies.
+* Follow the [INSTALL.md](scripts/INSTALL.md) to install the repository and dependencies.
 
 * Note: `mujoco200` with `mujoco-py==2.0.2.8`, `gym=0.20.0`, `protobuf==3.20.0`, `cython<3` works with this project, you can first manually install the denpendices before you install the Metaworld environment.
 
 ## Train
 
-To reproduce the results we present in the paper, we provide a [TRAIN_EVAL.md](TRAIN_EVAL.md) that record the training cli we ued, to achieve the results shown in the paper. To run the code, please follow our instuction in the [TRAIN_EVAL.md](TRAIN_EVAL.md).
+To reproduce the results we present in the paper, we provide a [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) that record the training cli we ued. To run the code, please follow our guidelines in the [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md).
 
 
 ## FileStructure
@@ -59,9 +59,9 @@ Structure of our code is shown as follows:
 
 ```
 LEGION
-    |-config                                -- config files folder
-    |-metadata                              -- language embedding folder
-    |-mtrl                                  -- implementation of our agent
+    |- config                               -- config files folder
+    |- metadata                             -- language embedding folder
+    |- mtrl                                 -- implementation of our agent
         |- agent
             |- components
                 |- actor.py                 -- downstream SAC actor
@@ -78,15 +78,15 @@ LEGION
             ...
             |- continuouslearning.py        -- our implementation of training script
             ...           
-
-    |-source (after followed INSTALL.md)
+    |- scripts
+        |- INSTALL.md                       -- package installation guidelines
+        |- TRAIN_EVAL.md                    -- training & evaluation clis
+    |- source (after followed INSTALL.md)
         |- bnpy                             -- third party Bayesian non-parametric library
         |- Metaworld-KUKA-IIWA-R800         -- third party metaworld environment
         |- mtenv                            -- third party environment manager library
     main.py                                 -- main entry of repository
     README.md                               -- this file
-    INSTALL.md                              -- installation guideline
-    TRAIN_EVAL.md                           -- training and evaluation cli
 ```
 
 
