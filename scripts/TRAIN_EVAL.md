@@ -526,8 +526,8 @@ train.log                       -- log data for training
 
 ## Baselines
 
-We use `MTRL` and `Continual World` for baseline comparison.
+We use `MTRL` and `Continual World` for baselines comparison.
 
 * MTRL supports 8 different multi-task RL algorithms as described [here](https://mtrl.readthedocs.io/en/latest/pages/tutorials/overview.html).
 
-* Continual world supports various continual learning methods inpired from foundation machine learning domain, algorithm described [here] (https://sites.google.com/view/continualworld)
+* Continual world supports various continual learning methods inpired from foundation machine learning domain, algorithm described [here](https://sites.google.com/view/continualworld).
