@@ -4,10 +4,11 @@
 [![Zulip Chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://mtenv.zulipchat.com)
 
 # Preserving and Combining Knowledge in Robotic Lifelong Reinforcement Learning
- LEGION: A Language Embedding based Generative Incremental Off-policy Reinforcement Learning Framework with Non-parametric Bayes
+
+LEGION: A Language Embedding based Generative Incremental Off-policy Reinforcement Learning Framework with Non-parametric Bayes
 
 
-## Contents
+## Repository Agenda
 
 1. [Introduction](#Introduction)
 
@@ -23,7 +24,7 @@
 
 ## Introduction
 
-Humans can continually accumulate knowledge and develop increasingly complex behaviors and skills throughout their lives, which is a capability known as ``lifelong learning''. 
+Humans can continually accumulate knowledge and develop increasingly complex behaviors and skills throughout their lives, which is a capability known as `lifelong learning`. 
 Although this lifelong learning capability is considered an essential mechanism that makes up generalized intelligence, recent advancements in artificial intelligence predominantly excel in narrow, specialized domains and generally lack of this lifelong learning capability.
 Our study introduces a robotic lifelong reinforcement learning framework that addresses this gap by incorporating a non-parametric Bayesian model into the knowledge space.
 Additionally, we enhance the agent's semantic understanding of tasks by integrating language embeddings into the framework.
@@ -35,8 +36,14 @@ The proposed framework advances our understanding of the robotic lifelong learni
 ### LEGION long horizon task demonstration
 [![Movie1](/docs/static/images/movie_cover.png "Long horzion task demonstration")](https://www.cit.tum.de/cit/startseite/)
 ### LEGION Framework for Training
+- Training: Our framework receives language semantic information and environment observations 
+          as input to make policy decisions and output action patterns, it trains on only one task at a time. L
+          represents the loss functions and is explained in the Method section `Upstream task inference`.
 ![train](/docs/static/images/framework_train.png "Framework for Lifelong reinforcement Learning")
 ### LEGION Framework for Deployment
+- Deployment: In the real-world demonstration, the agent parameters remain frozen, the agent 
+          receives input signal from real-world hardware and outputs corresponding action signals, both `sim2real` and `real2sim` 
+          modules process the data to align the gap between the simulation and real world.
 ![deployment](/docs/static/images/framework_deployment.png "Deployment")
 
 ## Installation
