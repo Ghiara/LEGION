@@ -6,8 +6,8 @@ buffer:
   env_obs_shape: # Will be auto populated
   action_shape: # Will be auto populated
   capacity: 10000000
-  batch_size: 128
-  dpmm_batch_size: 5000
+  batch_size: 512
+  dpmm_batch_size: 3000
   ######################
   #### Used in CRL #####
   ######################
