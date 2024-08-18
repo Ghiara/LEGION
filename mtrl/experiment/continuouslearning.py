@@ -36,21 +36,11 @@ class Experiment(experiment.Experiment):
         # save for best model with hightest success rate
         self.best_success_rate = 0.0
         self.video_save_count = 0
-        #################################################################
         if self.config.experiment.training_mode not in ['multitask']:
             self.crl_metrics_dir = utils.make_dir(
             os.path.join(self.config.setup.save_dir, "crl_metrics")
             )
             self.crl_metrics = CRL_Metrics(save_dir=self.crl_metrics_dir)
-            # if self.config.experiment.should_use_rehearsal:
-            #     self.rehearsal_buffer = ReplayBuffer(
-            #         device=self.device,
-            #         env_obs_shape=self.env_obs_space.shape,
-            #         task_obs_shape=(1,),
-            #         action_shape=self.action_space.shape,
-            #         capacity = 1000000,
-            #         batch_size = 128,
-            #     )
         
     
 
@@ -71,10 +61,10 @@ class Experiment(experiment.Experiment):
                 raise ValueError(
                     f"`{self.config.env.benchmark._target_}` env is not supported by metaworld experiment."
                 )
-        # MT10 {'eval': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}
+
         return eval_modes_to_env_ids
 
-    # from metaworld TODO modify
+
     def build_envs(self) -> Tuple[EnvsDictType, EnvMetaDataType]:
         
         if self.config.env.use_kuka_env is not True:
@@ -269,11 +259,9 @@ class Experiment(experiment.Experiment):
                 self.logger.log(
                     f"{mode}/env_index_{_current_env_index}", _current_env_id, step, tb_log=False
                 )
-                ###############################################################################
                 if self.config.experiment.training_mode in ['crl_queue', 'crl_expand']:
                     if record_crl_metrics:
                         self.crl_metrics.add(reward=subtask_reward, success_rate=subtask_success)  
-                ###############################################################################
             start_index += offset * num_envs
         self.logger.dump(step)
 
@@ -288,59 +276,10 @@ class Experiment(experiment.Experiment):
 
     def run(self):
         '''
-        env_metadata, ordered_task_list ['reach-v1', 'push-v1', 
-                                        'pick-place-v1', 'door-open-v1', 
-                                        'drawer-open-v1', 'drawer-close-v1', 
-                                        'button-press-topdown-v1', 'peg-insert-side-v1', 
-                                        'window-open-v1', 'window-close-v1']
-        task_name_to_idx_map:  {'reach-v1': 0, 'push-v1': 1, 
-                                'pick-place-v1': 2, 'door-open-v1': 3, 
-                                'drawer-open-v1': 4, 'drawer-close-v1': 5, 
-                                'button-press-topdown-v1': 6, 'peg-insert-side-v1': 7, 
-                                'window-open-v1': 8, 'window-close-v1': 9}
-        env_indices:  tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) <class 'torch.Tensor'>
-
-        env_metadata, ordered_task_list ['reach-v2', 'push-v2', 'pick-place-v2', 
-                                        'door-open-v2', 'drawer-open-v2', 'drawer-close-v2', 
-                                        'button-press-topdown-v2', 'peg-insert-side-v2', 
-                                        'window-open-v2', 'window-close-v2']
-        task_name_to_idx_map:  {'reach-v2': 0, 'push-v2': 1, 'pick-place-v2': 2, 
-                                'door-open-v2': 3, 'drawer-open-v2': 4, 
-                                'drawer-close-v2': 5, 'button-press-topdown-v2': 6, 
-                                'peg-insert-side-v2': 7, 'window-open-v2': 8, 'window-close-v2': 9}
-
+        Run the training loop depend on learning modes:
+        1. Multitask learning mode
+        2. Lifelong learning mode
         '''
-        # print('env_metadata, ordered_task_list', self.env_metadata['ordered_task_list'])
-        # print('task_name_to_idx_map: ', self.task_name_to_idx)
-        # print('agent task encoder: ', self.agent.task_encoder)
-        # print('agent encoder: ',self.agent.encoder)
-        # print('encoder params: ', self.agent.encoder.parameters())
-        # print('agent actor: ', self.agent.actor)
-        # print('agent critic: ', self.agent.critic)
-        # print('agent: log_alpha: ', self.agent.log_alpha)
-
-        # vec_env = self.envs["train"]
-        
-        # multitask_obs = vec_env.reset()
-        # print('task obs: \n', multitask_obs['env_obs'])
-        # print('task obs: \n', multitask_obs['task_obs'])
-        # env = self.envs['train'].env_list[0]
-        # obs = env.reset()
-        # env.render()
-        # step = 0
-        # # for i in range(100):
-        # while True:
-
-        #     action = env.action_space.sample()
-        #     obs, reward, done, info = env.step(action)
-        #     env.render()
-        #     step += 1
-        #     if step % env.max_path_length == 0:
-        #         obs = env.reset()
-        #         env.render()
-            
-        #     if step >=5000:
-        #         break
 
         try:
             if self.config.experiment.training_mode in ['multitask']:
@@ -546,14 +485,6 @@ class Experiment(experiment.Experiment):
             # change action space if needed
             if exp_config.training_mode in ['crl_queue']:
                 self.action_space = crl_env.env_list[subtask].action_space
-            # reset replay buffer
-            # if exp_config.should_reset_replay_buffer:
-            #     self.replay_buffer.reset()
-            # setup rehearsal buffer
-            # if self.config.replay_buffer.rehearsal.should_use:
-            #     if subtask > 0:
-            #         # only up to second phase we activate the rehearsal strategy
-            #         self.replay_buffer.rehearsal_activate = True
             # reset critics & target critics
             if exp_config.should_reset_critics and subtask>0:
                 is_critics_reset = self.agent.reset_critics()
@@ -584,9 +515,7 @@ class Experiment(experiment.Experiment):
             print(f'reset SAC critics: {is_critics_reset}')
             print(f'reset VAE weights: {is_vae_reset}')
             print(f'reset optimizer: {is_optim_reset}')
-            # print(f'use rehearsal: {self.config.replay_buffer.rehearsal.should_use}, rehearsal activate: {self.replay_buffer.rehearsal_activate}.')
             print(f'buffer content: {self.replay_buffer.idx}')
-            #       rehearsal content:{self.replay_buffer.rehearsal_idx}')
             start_time = time.time()
 
             # start subtask training
@@ -700,21 +629,6 @@ class Experiment(experiment.Experiment):
                             done_bool,
                             task_obs=env_index,
                         )
-                    # # save transitions for rehearsal
-                    # if (self.config.replay_buffer.rehearsal.should_use and 
-                    #     # we collect last 100 episodes of each subtask as rehearsal experience
-                    #     step >= (exp_config.num_train_steps - 
-                    #     self.config.replay_buffer.rehearsal.last_eps_num*self.max_episode_steps)
-                    #     ):
-                    #     # each phase we collect last_eps_num episodes
-                    #     self.replay_buffer.add_to_rehearsal(
-                    #         crl_obs["env_obs"][index],
-                    #         action[index],
-                    #         reward[index],
-                    #         next_crl_obs["env_obs"][index],
-                    #         done_bool,
-                    #         task_obs=env_index,
-                    #     )
 
 
                 crl_obs = next_crl_obs
@@ -723,11 +637,6 @@ class Experiment(experiment.Experiment):
             #######################################################
             ############## end of subtask training ################
             #######################################################
-            
-            # if self.config.replay_buffer.rehearsal.should_use:
-            #     print('collect rehearsal transitions...')
-            #     self.replay_buffer.collect_rehearsal_transitions(
-            #         self.config.replay_buffer.rehearsal.subtask_rehearsal_size)
 
             # final evaluation of each subtask phase
             print('subtask final evaluation')
@@ -753,19 +662,6 @@ class Experiment(experiment.Experiment):
         ############## end of total training ###############
         ####################################################
         
-        # ####################################################################
-        # if self.config.experiment.eval_latent_representation:
-        #     print('saving latent clustering data for further evaluation...')
-        #     # TODO: modify to suit for CRL
-        #     if exp_config.training_mode not in ['multitask']:
-        #         self.collect_eval_transitions_for_final_evaluation()
-            
-        #     self.agent.evaluate_latent_clustering(self.replay_buffer, 
-        #                                           self.task_name_to_idx, 
-        #                                           num_save=self.config.experiment.num_save,
-        #                                           prefix='final',
-        #                                           save_info_dict=True
-        #                                           )
 
         if self.config.experiment.save_video:
             print('start recording videos ...')

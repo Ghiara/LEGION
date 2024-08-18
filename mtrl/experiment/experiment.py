@@ -58,17 +58,12 @@ class Experiment(checkpointable.Checkpointable):
         assert self.action_space.high.max() <= 1
 
         self.env_obs_space = self.env_metadata["env_obs_space"]
-        ##############################################################################
         if self.config.env.use_onehot:
             env_obs_shape = [self.env_obs_space.shape[0]+self.config.env.num_envs]
         else:
             env_obs_shape = self.env_obs_space.shape
-        ##############################################################################
-        action_shape = self.action_space.shape
-        
-        #########################################
-        self.task_name_to_idx = ordered_task_dict # refer this dict to check which name conresponding to which env idx
-        #########################################
+        action_shape = self.action_space.shape        
+        self.task_name_to_idx = ordered_task_dict
         # select encoder & update the orderd task dict to config file
         self.config = prepare_config(config=self.config, env_metadata=self.env_metadata)
         self.agent = hydra.utils.instantiate(
@@ -96,8 +91,15 @@ class Experiment(checkpointable.Checkpointable):
             self.video_dir if self.config.experiment.save_video else None
         )
 
+        buffer_config = self.config.replay_buffer
+        key = 'type_to_select'
+        if key in buffer_config:
+            buffer_type_to_select = buffer_config[key]
+            self.buffer_config = buffer_config[buffer_type_to_select]
+
         self.replay_buffer = hydra.utils.instantiate(
-            self.config.replay_buffer,
+            # self.config.replay_buffer,
+            self.buffer_config
             device=self.device,
             env_obs_shape=env_obs_shape,
             task_obs_shape=(1,),

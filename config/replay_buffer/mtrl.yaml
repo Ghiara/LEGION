@@ -1,15 +1,34 @@
 # @package _group_
-_target_: mtrl.replay_buffer.ReplayBuffer
-env_obs_shape: # Will be auto populated
-action_shape: # Will be auto populated
-capacity: 10000000
-batch_size: 128
-dpmm_batch_size: 5000
-######################
-#### Used in CRL #####
-######################
-rehearsal:
-  should_use: False # signal whether use rehearsal
-  capacity: 1000000
-  ratio: 0.5 # ratio of previous experience in the replay buffer
-  subtask_rehearsal_size: 100000 # collect num? transitions of each subtask as rehearsal experience
+type_to_select: buffer
+
+buffer:
+  _target_: mtrl.replay_buffer.ReplayBuffer
+  env_obs_shape: # Will be auto populated
+  action_shape: # Will be auto populated
+  capacity: 10000000
+  batch_size: 128
+  dpmm_batch_size: 5000
+  ######################
+  #### Used in CRL #####
+  ######################
+  rehearsal:
+    should_use: False # signal whether use rehearsal
+    capacity: 1000000
+    ratio: 0.5 # ratio of previous experience in the replay buffer
+    subtask_rehearsal_size: 100000 # collect num? transitions of each subtask as rehearsal experience
+
+reservoir:
+  _target_: mtrl.replay_buffer_reservoir.ReservoirReplayBuffer
+  env_obs_shape: # Will be auto populated
+  action_shape: # Will be auto populated
+  capacity: 5000000
+  batch_size: 512
+  dpmm_batch_size: 3000
+  ############################
+  #### Not used outdated #####
+  ############################
+  rehearsal:
+    should_use: False # signal whether use rehearsal
+    capacity: 0
+    ratio: 0 # ratio of previous experience in the replay buffer
+    subtask_rehearsal_size: 0 # collect num? transitions of each subtask as rehearsal experience
