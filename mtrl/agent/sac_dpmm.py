@@ -3,7 +3,6 @@
 # Implementation based on Denis Yarats' implementation of [SAC](https://github.com/denisyarats/pytorch_sac).
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
-import warnings
 import hydra
 import numpy as np
 import torch
@@ -21,7 +20,6 @@ from mtrl.logger import Logger
 from mtrl.replay_buffer import ReplayBuffer, ReplayBufferSample
 from mtrl.utils.types import ConfigType, ModelType, ParameterType, TensorType
 
-import bnpy
 from mtrl.agent.components.bnp_model import BNPModel
 
 

@@ -14,7 +14,7 @@ from mtrl.experiment import experiment
 from mtrl.utils.types import ConfigType, EnvMetaDataType, EnvsDictType, ListConfigType
 from mtrl.logger import CRL_Metrics
 from mtrl.utils import utils
-from mtrl.replay_buffer import ReplayBuffer
+
 
 class Experiment(experiment.Experiment):
     def __init__(self, config: ConfigType, experiment_id: str = "0"):
