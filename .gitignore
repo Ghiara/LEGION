@@ -106,7 +106,7 @@ venv.bak/
 .idea/**
 # config/*
 !config/sample_config.yaml
-data/*
+# data/*
 model/*
 logs/*
 plots/*
