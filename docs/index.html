@@ -151,7 +151,32 @@
 </section>
 
 
-<!-- Teaser video-->
+<!-- Teaser video 1-->
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <video poster="" id="tree" autoplay controls muted loop height="100%">
+        <!-- Your video here -->
+        <!-- <source src="static/videos/banner_video.mp4" type="video/mp4"> -->
+        <source src="static/videos/demo1.mp4" type="video/mp4">
+      </video>
+      <h2 class="subtitle has-text-justified">
+        <b>Simulation and real-world demonstrations of acquired skills during lifelong reinforcemnet learning process</b>. 
+        In this study, the agent is sequentially trained on multiple tasks, adhering to a lifelong reinforcement learning process. 
+        Our proposed framework employs a Bayesian non-parametric model to manage its prior knowledge space, allowing it to cluster 
+        and retain knowledge from the continuous stream of tasks, which significantly enhances overall task success. 
+        The video showcases both simulation and real-world demonstrations, illustrating that our framework successfully 
+        completes all tasks encountered during the lifelong learning process.
+      </h2>
+    </div>
+  </div>
+</section>
+<!-- End teaser video 1-->
+
+
+
+
+<!-- Teaser video 2-->
 <section class="hero teaser">
   <div class="container is-max-desktop">
     <div class="hero-body">
@@ -160,13 +185,17 @@
         <!-- <source src="static/videos/banner_video.mp4" type="video/mp4"> -->
         <source src="https://assets-eu.researchsquare.com/files/rs-4353532/v1/49b2a9646c62385bb89ddc0e.mp4" type="video/mp4">
       </video>
-      <h2 class="subtitle has-text-centered">
-        <b>Demonstration of solving the long-horizon task ``clean the table''</b>. Our agent can accomplish the task by knowledge combination and reapplication, showcasing its generalization and flexibility in facing more challenging task distributions. 
+      <h2 class="subtitle has-text-justified">
+        <b>Demonstration of solving the long-horizon task ``clean the table''</b>. 
+        Our agent successfully completes the long-horizon task by combining knowledge acquired from the previous lifelong learning process. 
+        Unlike recent studies that rely on human demonstrations, our agent demonstrates greater flexibility by learning each subtask independently, 
+        without the need for strict conditioning between tasks. This highlights its ability to generalize and adapt to more challenging 
+        non-parametric task distributions.
       </h2>
     </div>
   </div>
 </section>
-<!-- End teaser video -->
+<!-- End teaser video 2-->
 
 <!-- Paper abstract -->
 <section class="section hero is-light">
@@ -202,7 +231,7 @@
        <div class="item">
         <!-- Your image here -->
         <img src="static/images/img1.png" alt="general LRL overview" class="center"/>
-        <h2 class="subtitle has-text-centered">
+        <h2 class="subtitle has-text-justified">
           <b>Concept illustration of robotic lifelong reinforcement learning process</b>. 
           (<b>A</b>) Overview illustration of the general lifelong reinforcement learning process. 
           Unlike the conventional multi-task approaches, where agents have simultaneous access to all tasks, 
@@ -217,7 +246,7 @@
       <div class="item">
         <!-- Your image here -->
         <img src="static/images/framework_train.png" alt="Training" class="center"/>
-        <h2 class="subtitle has-text-centered">
+        <h2 class="subtitle has-text-justified">
           (<b>A</b>) Training: The framework receives language semantic information and environment observations 
           as input to make policy decisions and output action patterns, it trains on only one task at a time. L
           represents the loss functions and is explained in the Method section ``Upstream task inference''.
@@ -226,7 +255,7 @@
       <div class="item">
         <!-- Your image here -->
         <img src="static/images/framework_deployment.png" alt="Deployment" class="center"/>
-        <h2 class="subtitle has-text-centered">
+        <h2 class="subtitle has-text-justified">
           (<b>B</b>) Deployment: In the real-world demonstration, the agent parameters remain frozen, the agent 
           receives input signal from real-world hardware and outputs corresponding action signals, both ``sim2real'' and ``real2sim'' 
           modules process the data to align the gap between the simulation and real world.
@@ -235,7 +264,7 @@
      <div class="item">
       <!-- Your image here -->
       <img src="static/images/img2.png" alt="Success rate" class="center"/>
-      <h2 class="subtitle has-text-centered">
+      <h2 class="subtitle has-text-justified">
         <b>Contribution of non-parametric knowledge space w/o language embeddings</b>. (<b>A</b>) Average success rate comparison. 
         Comparing LEGION (Gauss) and LEGION (DPMM) provides insights into the contribution of the non-parametric knowledge space. 
         Similarly, comparing SAC (w. Language embeddings) and SAC (w.o. Language embeddings) allows us to assess the contribution of language embeddings.
@@ -244,7 +273,7 @@
     <div class="item">
       <!-- Your image here -->
       <img src="static/images/img3.png" alt="t-SNE projection" class="center"/>
-      <h2 class="subtitle has-text-centered">
+      <h2 class="subtitle has-text-justified">
         <b>T-SNE snapshots of knowledge space</b>. (<b>A</b>)-(<b>E</b>) T-SNE projection of latent space after training on two tasks, 
         four tasks, six tasks, eight tasks and all tasks, respectively.
       </h2>
@@ -307,6 +336,12 @@
             <!-- Your video file here -->
             <source src="https://assets-eu.researchsquare.com/files/rs-4353532/v1/26b86b788635730e962b8a99.mp4"
             type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-video4">
+          <video poster="" id="video4" autoplay controls muted loop height="100%">\
+            <!-- Your video file here -->
+            <source src="static/videos/demo_coffee.mp4" type="video/mp4">
           </video>
         </div>
       </div>
