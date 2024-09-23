@@ -20,7 +20,7 @@ task_encoder_cfg: # Metadata context encoder cfg
     embedding_dim: 50
     hidden_dim: 50
     num_layers: 2
-    output_dim: 50 # default 50, in VAE-DPMM 5 output of final context encoding
+    output_dim: 50 
   optimizer_cfg: ${agent.optimizers.actor}
   losses_to_train: ["critic", "decoder", "task_encoder", "encoder"]
 

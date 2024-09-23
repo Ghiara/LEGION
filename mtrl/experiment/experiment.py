@@ -99,7 +99,7 @@ class Experiment(checkpointable.Checkpointable):
 
         self.replay_buffer = hydra.utils.instantiate(
             # self.config.replay_buffer,
-            self.buffer_config
+            self.buffer_config,
             device=self.device,
             env_obs_shape=env_obs_shape,
             task_obs_shape=(1,),

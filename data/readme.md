@@ -5,10 +5,13 @@ we released the raw data that reported in our paper for detailed check. Addition
 The files are listed below:
 
 ### 1. lifelong -- training results for lifelong learning
-  - curriculum -- our initial LEGION lifelong learning setup
-  - reverse -- train the model in an "hard to easy" mode
+  - curriculum -- train the model in a curriculum based task ordering
+  - reverse -- train the model in a reverse task ordering
   - random -- train the model in a random task ordering
   - few-shot -- training log data for few-shot performance
+  - hetero_arms -- renderings of heterogenous embodiments from Sawyer and KUKA
+    - default -- renderings from default task enviroments
+    - cross_validation -- renderings using switched embodiment
 
 ### 2. mtrl -- multitask based training results
   - latent_samples.npz -- saved inference results in Bayesian non-parametric knowledge space
