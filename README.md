@@ -2,6 +2,7 @@
 [![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Zulip Chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://mtenv.zulipchat.com)
+[![DOI](https://zenodo.org/badge/619254723.svg)](https://doi.org/10.5281/zenodo.14265088)
 
 # Preserving and Combining Knowledge in Robotic Lifelong Reinforcement Learning
 
