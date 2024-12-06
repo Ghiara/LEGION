@@ -108,7 +108,7 @@ LEGION
 
 ## Data
 
-The original training and evaluation data that we presented in the paper are avaiable at [Square Ocean](https://codeocean.com/capsule/6151918/tree).
+The original training and evaluation data that we presented in the paper are avaiable at [here](data/).
 
 
 ## Acknowledgements
