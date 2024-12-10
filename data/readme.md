@@ -18,10 +18,8 @@ The files are listed below:
   - legion_eval_success*.csv -- success rate evaluation records
 
 ### 3. weights -- pretrained weights for LEGION lifelong learning
-  - 01 -- pretrained weights 01
+  - ckpt -- pretrained weights for evaluation
     - actor.pt -- SAC actor weights
     - task_encoder.pt -- upstream pretrained language embedding module
     - vae.pt -- upstream task inference modules
-  - 02 -- pretrained weights 02
-  - 03 -- pretrained weights 03
   - legion_eval.ipynb -- scripts for weights loading and evaluation
