@@ -12,15 +12,17 @@ Official implementation of - LEGION: A Language Embedding based Generative Incre
 
 
 [Yuan Meng](https://github.com/Ghiara)<sup>1,\*,&dagger;</sup>, [Zhenshan Bing](https://github.com/zhenshan-bing)<sup>1,2,\*,&dagger;</sup>, [Xiangtong Yao](https://www.ce.cit.tum.de/air/people/xiangtong-yao/)<sup>1,\*</sup>, [Kejia Chen](https://kifabrik.mirmi.tum.de/team/)<sup>1</sup>,
+
 [Kai Huang](https://cse.sysu.edu.cn/content/2466)<sup>3,&dagger;</sup>, [Yang Gao](https://is.nju.edu.cn/gy_en/main.htm)<sup>2,&dagger;</sup>, [Fuchun Sun](https://www.cs.tsinghua.edu.cn/csen/info/1312/4393.htm)<sup>4,&dagger;</sup>, [Alois Knoll](https://www.ce.cit.tum.de/air/people/prof-dr-ing-habil-alois-knoll/)<sup>1</sup>.
 
+<center>
 <small><sup>1</sup>School of Computation, Information and Technology, Technical University of Munich, Germany</small>
 <br><small><sup>2</sup>State Key Laboratory for Novel Software Technology, Nanjing University, China</small>
 <br><small><sup>3</sup>Key Laboratory of Machine Intelligence and Advanced Computing, School of Computer Science and Engineering, Sun Yat-sen University, China</small>
 <br><small><sup>4</sup>Department of Computer Science and Technology, Tsinghua University, China</small>
 <small><br><sup>*</sup>Indicates Equal Contribution</small>
 <small><br><sup>&dagger;</sup>To whom correspondence should be addressed; E-mail: zhenshan.bing@tum.de, huangk36@mail.sysu.edu.cn, gaoy@nju.edu.cn, fcsun@tsinghua.edu.cn</small>
-
+</center>
 
 ## Repository Agenda
 
