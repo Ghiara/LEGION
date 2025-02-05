@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """Code to interface with the config."""
 import datetime
 import hashlib

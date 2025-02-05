@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 """This is the main entry point for the running the experiments."""
 
 import hydra

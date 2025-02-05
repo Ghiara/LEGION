@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 """Implementation of the theta component described in
 "Multi-Task Reinforcement Learning as a Hidden-Parameter Block MDP"
 Link: https://arxiv.org/abs/2007.07206

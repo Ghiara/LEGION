@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 """Layers for parallelizing computation with mixture of experts.
 
 A mixture of experts(models) can be easily simulated by maintaining a list

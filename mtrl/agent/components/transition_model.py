@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 """Transition dynamics for the agent."""
 from typing import List, Optional, Tuple
 

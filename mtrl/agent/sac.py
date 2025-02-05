@@ -1,5 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-
 # Implementation based on Denis Yarats' implementation of [SAC](https://github.com/denisyarats/pytorch_sac).
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple

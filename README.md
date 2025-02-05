@@ -10,7 +10,7 @@ Official implementation of - LEGION: A Language Embedding based Generative Incre
 
 <div align="center">
 
-#### [[Project Website]](https://ghiara.github.io/LEGION/) [[Paper]](https://www.researchsquare.com/article/rs-4353532/v1)
+#### [[Project Website]](https://ghiara.github.io/LEGION/) [[Paper]](https://www.nature.com/articles/s42256-025-00983-2)
 
 
 [Yuan Meng](https://github.com/Ghiara)<sup>1,\*,&dagger;</sup>, [Zhenshan Bing](https://github.com/zhenshan-bing)<sup>1,2,\*,&dagger;</sup>, [Xiangtong Yao](https://www.ce.cit.tum.de/air/people/xiangtong-yao/)<sup>1,\*</sup>, [Kejia Chen](https://kifabrik.mirmi.tum.de/team/)<sup>1</sup>,
@@ -137,3 +137,12 @@ The original training and evaluation data that we presented in the paper are ava
 * Implementation Inherited from [MTRL](https://mtrl.readthedocs.io/en/latest/index.html) library. 
 
 * Documentation of MTRL repository refer to: [https://mtrl.readthedocs.io](https://mtrl.readthedocs.io).
+
+
+## Citation
+
+To cite this article:
+
+```
+Meng, Y., Bing, Z., Yao, X. et al. Preserving and combining knowledge in robotic lifelong reinforcement learning. Nat Mach Intell (2025). https://doi.org/10.1038/s42256-025-00983-2
+```

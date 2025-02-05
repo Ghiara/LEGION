@@ -1,5 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-
 """This is the main entry point for the code."""
 import os 
 # os.environ['NUMEXPR_MAX_THREADS'] = '8'

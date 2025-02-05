@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """Interface for the objects that can be checkpointed on the filesystem."""
 from abc import ABC, abstractmethod
 from typing import Any

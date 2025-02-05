@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 """Implementation of the soft routing network and MLP described in
 "Multi-Task Reinforcement Learning with Soft Modularization"
 Link: https://arxiv.org/abs/2003.13661

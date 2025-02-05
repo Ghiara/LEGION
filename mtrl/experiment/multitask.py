@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 """`Experiment` class manages the lifecycle of a multi-task model."""
 
 import time

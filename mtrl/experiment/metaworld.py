@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 """Class to interface with an Experiment"""
 
 from typing import Dict

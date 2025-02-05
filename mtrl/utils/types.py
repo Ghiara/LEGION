@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """Collection of types used in the code."""
 
 from typing import TYPE_CHECKING, Dict, Tuple
