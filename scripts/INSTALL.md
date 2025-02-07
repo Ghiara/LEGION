@@ -23,7 +23,7 @@ After installing, initialize your newly-installed Miniconda. The following comma
 ~/miniconda3/bin/conda init zsh
 ```
 
-### 1.3 We use Mujoco200 to build RL einvironment 
+### 1.3 We use Mujoco200 to build RL environment 
 
 To install `Mujoco200`, following: https://www.roboti.us/download.html, download `mujoco200 linux`, unzip the file and place at `your/root/path/to/.mujoco/` with the folder name `mujoco200`. Namely, the full path should be something like `/home/ubuntu/.mujoco/mujoco200`. After that, add following cli (modify according to your own path) in your root `.bashrc` file:
 ```bash
@@ -100,7 +100,7 @@ pip install mujoco-py==2.0.2.10
 
 - ImportError: /home/.../miniconda3/envs/legion/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /lib/x86_64-linux-gnu/libLLVM-13.so.1)
   
-following this page: https://bcourses.berkeley.edu/courses/1478831/pages/glibcxx-missing
+Refer this page: https://bcourses.berkeley.edu/courses/1478831/pages/glibcxx-missing
 ```bash
 cd /home/to/your/anaconda3/envs/legion/lib
 mv libstdc++.so.6 libstdc++.so.6.old
