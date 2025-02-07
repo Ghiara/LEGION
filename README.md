@@ -6,9 +6,10 @@
 
 # Preserving and Combining Knowledge in Robotic Lifelong Reinforcement Learning
 
-Official implementation of - LEGION: A Language Embedding based Generative Incremental Off-policy Reinforcement Learning Framework with Non-parametric Bayes
-
 <div align="center">
+
+Official implementation of LEGION: A Language Embedding based Generative Incremental Off-policy Reinforcement Learning Framework with Non-parametric Bayes
+
 
 #### [[Project Website]](https://ghiara.github.io/LEGION/) [[Paper]](https://www.nature.com/articles/s42256-025-00983-2)
 
