@@ -144,6 +144,13 @@ The original training and evaluation data that we presented in the paper are ava
 
 To cite this article:
 
-```
-Meng, Y., Bing, Z., Yao, X. et al. Preserving and combining knowledge in robotic lifelong reinforcement learning. Nat Mach Intell (2025). https://doi.org/10.1038/s42256-025-00983-2
+```bibtex
+@article{meng2025preserving,
+  title={Preserving and combining knowledge in robotic lifelong reinforcement learning},
+  author={Meng, Yuan and Bing, Zhenshan and Yao, Xiangtong and Chen, Kejia and Huang, Kai and Gao, Yang and Sun, Fuchun and Knoll, Alois},
+  journal={Nature Machine Intelligence},
+  pages={1--14},
+  year={2025},
+  publisher={Nature Publishing Group UK London}
+}
 ```
