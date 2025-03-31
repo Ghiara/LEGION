@@ -87,14 +87,14 @@ cd mtenv && pip install -e . && cd ..
 
 ## 3. Error catching
 
->[!ERROR]
+>[!WARNING]
 > TypeError: Descriptors cannot not be created directly. If this call came from a _pb2.py file, your generated code is out of date and must be regenerated with protoc >= 3.19.0.If you cannot immediately regenerate your protos, some other possible workarounds are: 1. Downgrade the protobuf package to 3.20.x or lower.2. Set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python (but this will use pure-Python parsing and will be much slower).
 
 ```bash
 pip install protobuf==3.20.0
 ```
 
->[!ERROR]
+>[!WARNING]
 > Failed import mujoco-py: 
 
 try another version of mujoco-py, for example:
@@ -102,7 +102,7 @@ try another version of mujoco-py, for example:
 pip install mujoco-py==2.0.2.10
 ```
 
->[!ERROR]
+>[!WARNING]
 > ImportError: /home/.../miniconda3/envs/legion/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /lib/x86_64-linux-gnu/libLLVM-13.so.1)
   
 Refer this page: https://bcourses.berkeley.edu/courses/1478831/pages/glibcxx-missing
