@@ -1,7 +1,8 @@
 # Train and Evaluation
-This file provide the CLI we used to produce the data that present in the paper
+This file provides the CLIs we used to produce the data that present in the paper
 
-- To run the Meta-World with KUKA manipulation, add following command (Only valid for MT10_KUKA)
+>[!TIP]
+> To run the Meta-World with KUKA manipulation, add following command (Only valid for MT10_KUKA)
 ```
 env.use_kuka_env=True
 ```
@@ -623,7 +624,7 @@ setup.device=cuda:0
 
 All training and evaluation data are saved under `logs/YYYY-MM-DD HH:MM:SS`.
 
-Under each data log folder, you will see:
+In each data log folder, you will see:
 
 ```
 dpmm_model                      -- saved DPMM model and latent variable data
@@ -645,4 +646,4 @@ We use `MTRL` and `Continual World` for baselines comparison.
 
 * MTRL supports 8 different multi-task RL algorithms as described [here](https://mtrl.readthedocs.io/en/latest/pages/tutorials/overview.html).
 
-* Continual world supports various continual learning methods inpired from foundation machine learning domain, algorithm described [here](https://sites.google.com/view/continualworld).
+* Continual world supports various continual learning methods inpired from foundation machine learning domain, baseline algorithms described [here](https://sites.google.com/view/continualworld).

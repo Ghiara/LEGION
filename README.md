@@ -75,11 +75,12 @@ To install the repository, follow the steps below:
 
 * Follow the [INSTALL.md](scripts/INSTALL.md) to install the repository and dependencies.
 
-* Note: `mujoco200` with `mujoco-py==2.0.2.8`, `gym=0.20.0`, `protobuf==3.20.0`, `cython<3` works with this project, you can first manually install the denpendices before you install the Metaworld environment.
+> [!TIP] 
+> `mujoco200` with `mujoco-py==2.0.2.8`, `gym=0.20.0`, `protobuf==3.20.0`, `cython<3` works with this project, you can first manually install the denpendices before you install the Metaworld environment.
 
 ## Train
 
-To reproduce the results we present in the paper, we provide a [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) that record the training cli we used. To run the code, please follow our guidelines in the [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md).
+To reproduce the results we present in the paper, we provide a [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) that record the training command lines we used. To run the code, please follow our guidelines in the [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md).
 
 
 ## FileStructure
