@@ -14,7 +14,7 @@ Official implementation of LEGION: A Language Embedding based Generative Increme
 #### [[Project Website]](https://ghiara.github.io/LEGION/) [[Paper]](https://www.nature.com/articles/s42256-025-00983-2)
 
 
-[Yuan Meng](https://github.com/Ghiara)<sup>1,\*,&dagger;</sup>, [Zhenshan Bing](https://github.com/zhenshan-bing)<sup>1,2,\*,&dagger;</sup>, [Xiangtong Yao](https://www.ce.cit.tum.de/air/people/xiangtong-yao/)<sup>1,\*</sup>, [Kejia Chen](https://kifabrik.mirmi.tum.de/team/)<sup>1</sup>,
+[Yuan Meng](https://github.com/Ghiara)<sup>1,\*</sup>, [Zhenshan Bing](https://github.com/zhenshan-bing)<sup>1,2,\*,&dagger;</sup>, [Xiangtong Yao](https://www.ce.cit.tum.de/air/people/xiangtong-yao/)<sup>1,\*</sup>, [Kejia Chen](https://kifabrik.mirmi.tum.de/team/)<sup>1</sup>,
 
 [Kai Huang](https://cse.sysu.edu.cn/content/2466)<sup>3,&dagger;</sup>, [Yang Gao](https://is.nju.edu.cn/gy_en/main.htm)<sup>2,&dagger;</sup>, [Fuchun Sun](https://www.cs.tsinghua.edu.cn/csen/info/1312/4393.htm)<sup>4,&dagger;</sup>, [Alois Knoll](https://www.ce.cit.tum.de/air/people/prof-dr-ing-habil-alois-knoll/)<sup>1</sup>.
 
@@ -51,16 +51,21 @@ Our study introduces a robotic lifelong reinforcement learning framework that ad
 Additionally, we enhance the agent's semantic understanding of tasks by integrating language embeddings into the framework.
 Our proposed embodied agent can consistently accumulate knowledge from a continuous stream of one-time feeding tasks. 
 Furthermore, our agent can tackle challenging real-world long-horizon tasks by combining and reapplying its acquired knowledge from the original tasks stream.
-Our findings demonstrate that intelligent embodied agents can exhibit a capability for lifelong learning similar to that of human beings.
 The proposed framework advances our understanding of the robotic lifelong learning process and may inspire the development of more broadly applicable intelligence.
 
 ### LEGION long horizon task demonstration
-[![Movie1](/docs/static/images/movie_cover.png "Long horzion task demonstration")](https://www.cit.tum.de/cit/startseite/)
+
+<!-- [![Movie1](/docs/static/images/movie_cover.png "Long horzion task demonstration")](https://www.cit.tum.de/cit/startseite/) -->
+[![Movie1](/docs/static/images/movie_cover.png "Long horizon task demonstration")](https://assets-eu.researchsquare.com/files/rs-4353532/v1/49b2a9646c62385bb89ddc0e.mp4)
+
+
 ### LEGION Framework for Training
+
 - Training: Our framework receives language semantic information and environment observations 
           as input to make policy decisions and output action patterns, it trains on only one task at a time. L
           represents the loss functions and is explained in the Method section `Upstream task inference`.
 ![train](/docs/static/images/framework_train.png "Framework for Lifelong reinforcement Learning")
+
 ### LEGION Framework for Deployment
 - Deployment: In the real-world demonstration, the agent parameters remain frozen, the agent 
           receives input signal from real-world hardware and outputs corresponding action signals, both `sim2real` and `real2sim` 
@@ -69,23 +74,26 @@ The proposed framework advances our understanding of the robotic lifelong learni
 
 ## Installation
 
-To install the repository, follow the steps below:
+To set up the repository, follow the steps below:
 
-* Clone this repository: `git clone https://github.com/Ghiara/LEGION.git`.
+* Clone the repository: `git clone https://github.com/Ghiara/LEGION.git`.
 
-* Follow the [INSTALL.md](scripts/INSTALL.md) to install the repository and dependencies.
+* Please refer to [INSTALL.md](scripts/INSTALL.md) for detailed installation steps and environment setup.
 
 > [!TIP] 
-> `mujoco200` with `mujoco-py==2.0.2.8`, `gym=0.20.0`, `protobuf==3.20.0`, `cython<3` works with this project, you can first manually install the denpendices before you install the Metaworld environment.
+> This project works best with the following versions: `mujoco200`, `mujoco-py==2.0.2.8`, `gym=0.20.0`, `protobuf==3.20.0`, `cython<3`. It's recommended to install these dependencies manually **before** installing the MetaWorld environment to avoid compatibility issues.
 
 ## Train
 
-To reproduce the results we present in the paper, we provide a [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) that record the training command lines we used. To run the code, please follow our guidelines in the [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md).
+To reproduce the results reported in our paper, we provide a separate file containing the exact training command lines used during our experiments.
+> [!IMPORTANT]
+> Please follow the instructions in [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) to run the code properly.
+
 
 
 ## FileStructure
 
-In summary, we use `Hydra` to manage the training process. 
+We use `Hydra` to manage the training process. 
 - The configs for all instances can be found under `config` folder. 
 - The agent implementation can be found under `mtrl/agent` folder.
 - The enviroments can be found at `mtrl/env`.
@@ -94,7 +102,7 @@ In summary, we use `Hydra` to manage the training process.
 
 The detailed structure of this project is shown as follows:
 
-```
+```bash
 LEGION
     |- config                               -- config files folder
     |- metadata                             -- language embedding folder
