@@ -89,6 +89,36 @@ To reproduce the results reported in our paper, we provide a separate file conta
 > [!IMPORTANT]
 > Please follow the instructions in [TRAIN_EVAL.md](scripts/TRAIN_EVAL.md) to run the code properly.
 
+For example, to train the LEGION framework with lifelong learning mode:
+```bash
+python3 -u main.py \
+setup=continuouslearning \
+env=metaworld-mt10 \
+env.use_kuka_env=True \
+agent=sac_dpmm \
+agent.encoder.type_to_select=vae \
+agent.encoder.vae.should_reconstruct=True \
+agent.multitask.should_use_task_encoder=True \
+agent.multitask.should_use_disentangled_alpha=True \
+agent.multitask.encoder_input_setup=context_obs \
+agent.multitask.dpmm_cfg.dpmm_update_start_step=10000 \
+agent.multitask.dpmm_cfg.dpmm_update_freq=100000 \
+agent.multitask.dpmm_cfg.kl_div_update_freq=50 \
+agent.multitask.dpmm_cfg.sF=0.00001 \
+agent.multitask.dpmm_cfg.beta_kl_z=0.001 \
+experiment.training_mode=crl_queue \
+experiment.should_reset_optimizer=True \
+experiment.should_reset_critics=False \
+experiment.should_reset_vae=False \
+experiment.eval_freq=10000 \
+experiment.num_eval_episodes=10 \
+experiment.num_train_steps=1000000 \
+agent.multitask.num_envs=10 \
+experiment.save_video=False \
+setup.seed=0 \
+setup.device=cuda:0
+```
+
 
 
 ## FileStructure
@@ -102,7 +132,7 @@ We use `Hydra` to manage the training process.
 
 The detailed structure of this project is shown as follows:
 
-```bash
+```
 LEGION
     |- config                               -- config files folder
     |- metadata                             -- language embedding folder

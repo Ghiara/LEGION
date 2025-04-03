@@ -9,7 +9,7 @@ env.use_kuka_env=True
 
 ## To run the LEGION under multi-task setting
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -40,7 +40,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -71,7 +71,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -102,7 +102,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -133,7 +133,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -164,7 +164,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -195,7 +195,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -226,7 +226,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -257,7 +257,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -288,7 +288,7 @@ replay_buffer.buffer.batch_size=1280 \
 replay_buffer.buffer.capacity=1000000 
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -321,7 +321,7 @@ replay_buffer.buffer.capacity=1000000
 
 ## To run the LEGION under lifelong learning setting
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -350,7 +350,7 @@ setup.seed=0 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -380,7 +380,7 @@ setup.seed=1 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -410,7 +410,7 @@ setup.seed=2 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -440,7 +440,7 @@ setup.seed=3 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -470,7 +470,7 @@ setup.seed=4 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -500,7 +500,7 @@ setup.seed=5 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -530,7 +530,7 @@ setup.seed=6 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -560,7 +560,7 @@ setup.seed=7 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
@@ -590,7 +590,7 @@ setup.seed=8 \
 setup.device=cuda:0
 ```
 
-```
+```bash
 python3 -u main.py \
 setup=continuouslearning \
 env=metaworld-mt10 \
